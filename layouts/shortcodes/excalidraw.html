@@ -1,5 +1,5 @@
-{{- $src := .Get "src" -}}
-{{- $source := .Get "source" -}}
+{{- $src := strings.TrimPrefix "/" (.Get "src") -}}
+{{- $source := strings.TrimPrefix "/" (.Get "source") -}}
 {{- $alt := .Get "alt" | default "Excalidraw diagram" -}}
 {{- $caption := .Get "caption" -}}
 <figure class="excalidraw-figure">
@@ -15,4 +15,3 @@
   </figcaption>
   {{- end -}}
 </figure>
-

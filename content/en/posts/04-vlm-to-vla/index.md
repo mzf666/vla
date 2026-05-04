@@ -1,10 +1,10 @@
 ---
 title: "From VLM to VLA"
-date: 2026-05-04
+date: 2026-04-29T09:00:00+08:00
 draft: true
 tags: ["vla", "vlm", "openvla", "smolvla"]
 series: ["VLA Tutorial"]
-weight: 4
+weight: 6
 ShowToc: true
 TocOpen: true
 ShowReadingTime: true
@@ -12,4 +12,3 @@ summary: "How vision-language models become robot policies through state inputs,
 ---
 
 English version placeholder.
-

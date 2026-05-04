@@ -1,10 +1,10 @@
 ---
 title: "VLA 深入浅出：系列路线图"
-date: 2026-05-04
+date: 2026-05-04T09:00:00+08:00
 draft: false
 tags: ["vla", "world-model", "robot-learning", "roadmap"]
 series: ["VLA Tutorial"]
-weight: 0
+weight: 1
 ShowToc: true
 TocOpen: true
 ShowReadingTime: true
@@ -47,20 +47,20 @@ OpenVLA 是非常重要的开源 VLA baseline。它展示了一个 7B VLA 如何
 
 第三，忽视系统约束。机器人闭环控制不是离线生成文本。inference latency、control frequency、action chunking、asynchronous execution 会直接影响成功率。SmolVLA 把 affordable deployment 和 async inference 放在核心位置，就是因为大模型推理速度本身已经成为 robotics bottleneck。
 
-所以这个系列先从边界开始，再进入基础 pipeline，最后进入大模型和前沿 report。
+所以这个系列先从总路线开始，再讲问题边界；随后进入历史脉络、基础 pipeline、大模型 VLA 和前沿 report。
 
 ## 系列结构
 
 <div class="roadmap-grid">
   <div class="roadmap-card"><strong>0. 路线图</strong>建立学习顺序、读者假设和产出规范。</div>
   <div class="roadmap-card"><strong>1. 问题框架</strong>区分 policy、world model、VLA 的输入、输出和训练目标。</div>
-  <div class="roadmap-card"><strong>2. World Model</strong>理解 latent dynamics、imagination rollout、planning 和 error accumulation。</div>
-  <div class="roadmap-card"><strong>3. Imitation Pipeline</strong>从 LeRobot、ACT、Diffusion Policy、robomimic 看懂数据、训练、评估。</div>
-  <div class="roadmap-card"><strong>4. VLM to VLA</strong>解释 VLM 如何变成能输出机器人动作的 policy。</div>
-  <div class="roadmap-card"><strong>5. Action Representation</strong>比较 continuous action、chunk、tokenization、diffusion、flow matching。</div>
-  <div class="roadmap-card"><strong>6. Systems</strong>讨论 latency、async inference、quantization、edge / on-device VLA。</div>
-  <div class="roadmap-card"><strong>7. Frontier</strong>分析 WorldVLA、RynnVLA、Gemini Robotics、Genie 等融合趋势。</div>
-  <div class="roadmap-card"><strong>8. Research</strong>把学习路线收束到可做的小题目和实验协议。</div>
+  <div class="roadmap-card"><strong>2. 历史脉络</strong>从 imitation learning、VLM、robot foundation model 到 VLA。</div>
+  <div class="roadmap-card"><strong>3. World Model</strong>理解 latent dynamics、imagination rollout、planning 和 error accumulation。</div>
+  <div class="roadmap-card"><strong>4. Imitation Pipeline</strong>从 LeRobot、ACT、Diffusion Policy、robomimic 看懂数据、训练、评估。</div>
+  <div class="roadmap-card"><strong>5. VLM to VLA</strong>解释 VLM 如何变成能输出机器人动作的 policy。</div>
+  <div class="roadmap-card"><strong>6. Action Representation</strong>比较 continuous action、chunk、tokenization、diffusion、flow matching。</div>
+  <div class="roadmap-card"><strong>7. Systems</strong>讨论 latency、async inference、quantization、edge / on-device VLA。</div>
+  <div class="roadmap-card"><strong>8. Frontier</strong>分析 WorldVLA、RynnVLA、Gemini Robotics、Genie 等融合趋势。</div>
 </div>
 
 ## 每篇文章的固定问题
@@ -108,4 +108,3 @@ OpenVLA 是非常重要的开源 VLA baseline。它展示了一个 7B VLA 如何
 - Gemini Robotics On-Device: [Google DeepMind model page](https://deepmind.google/models/gemini-robotics/gemini-robotics-on-device/)
 - GR00T N1: [NVIDIA research page](https://research.nvidia.com/publication/2025-03_nvidia-isaac-gr00t-n1-open-foundation-model-humanoid-robots)
 - Genie 3: [Google DeepMind model page](https://deepmind.google/models/genie/)
-

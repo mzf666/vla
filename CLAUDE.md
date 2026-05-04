@@ -38,13 +38,14 @@
 |---|---|---|
 | 0 | `00-series-roadmap` | 系列路线图：为什么 VLA 必须和 world model、imitation pipeline 一起学 |
 | 1 | `01-problem-frame` | 问题框架：policy、world model、VLA 的边界与交集 |
-| 2 | `02-world-model-basics` | World model 基础：latent dynamics、imagination、planning |
-| 3 | `03-embodied-imitation-pipeline` | 非 VLA embodied imitation pipeline：LeRobot、ACT、Diffusion Policy、robomimic |
-| 4 | `04-vlm-to-vla` | 从 VLM 到 VLA：视觉、语言、状态与动作输出如何接起来 |
-| 5 | `05-action-representation` | Action representation：continuous、chunk、token、diffusion、flow matching |
-| 6 | `06-systems-and-deployment` | 系统与部署：latency、async inference、quantization、on-device VLA |
-| 7 | `07-vla-world-model-frontier` | VLA + world model 前沿：WorldVLA、RynnVLA、Gemini Robotics、Genie |
-| 8 | `08-research-entry-points` | 博士研究切入点：小模型、动作表征、future prediction、小数据 regime |
+| 2 | `02-history-to-vla` | 历史脉络：从 imitation learning 到 VLA |
+| 3 | `03-world-model-basics` | World model 基础：latent dynamics、imagination、planning |
+| 4 | `03-embodied-imitation-pipeline` | 非 VLA embodied imitation pipeline：LeRobot、ACT、Diffusion Policy、robomimic |
+| 5 | `04-vlm-to-vla` | 从 VLM 到 VLA：视觉、语言、状态与动作输出如何接起来 |
+| 6 | `05-action-representation` | Action representation：continuous、chunk、token、diffusion、flow matching |
+| 7 | `06-systems-and-deployment` | 系统与部署：latency、async inference、quantization、on-device VLA |
+| 8 | `07-vla-world-model-frontier` | VLA + world model 前沿：WorldVLA、RynnVLA、Gemini Robotics、Genie |
+| 9 | `08-research-entry-points` | 博士研究切入点：小模型、动作表征、future prediction、小数据 regime |
 
 ## 写作风格
 
@@ -53,4 +54,3 @@
 - 默认读者懂 MDP、policy gradient、offline RL、sequence model，但不默认懂 robot learning 工程栈。
 - 对最新 report 明确区分 paper result、company report、inference/speculation。
 - 每篇都回答：输入是什么、输出是什么、是否预测未来、是否使用语言、训练目标是什么、评估在哪里做。
-

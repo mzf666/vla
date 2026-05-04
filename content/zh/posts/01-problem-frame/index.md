@@ -1,10 +1,10 @@
 ---
 title: "问题框架：Policy、World Model 和 VLA 的边界"
-date: 2026-05-04
+date: 2026-05-03T09:00:00+08:00
 draft: false
 tags: ["vla", "world-model", "policy", "taxonomy"]
 series: ["VLA Tutorial"]
-weight: 1
+weight: 2
 ShowToc: true
 TocOpen: true
 ShowReadingTime: true
@@ -110,4 +110,3 @@ $$
 VLA 不是一个替代所有 robot learning 的魔法对象。它是 language-conditioned embodied policy，在工程上继承 imitation learning pipeline，在表示上借用 VLM，在前沿上开始和 world model 融合。
 
 后续文章会沿着这条线展开：先理解 world model 为什么重要，再跑通非 VLA 的 embodied imitation pipeline，然后再看 VLM 到 VLA 的改造点。只有这样，读 OpenVLA、SmolVLA、π0、GR00T、Gemini Robotics、WorldVLA 这些工作时，才不会只剩下“模型更大、数据更多”的印象。
-
