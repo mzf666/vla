@@ -1,0 +1,84 @@
+baseURL: "https://mzf666.github.io/vla/"
+title: "VLA 深入浅出"
+theme: PaperMod
+enableRobotsTXT: true
+defaultContentLanguage: zh
+defaultContentLanguageInSubdir: true
+
+languages:
+  zh:
+    languageCode: zh-CN
+    languageName: 中文
+    weight: 1
+    contentDir: content/zh
+    params:
+      languageAltTitle: English
+    menu:
+      main:
+        - identifier: posts
+          name: 文章
+          url: /posts/
+          weight: 1
+        - identifier: roadmap
+          name: 路线图
+          url: /posts/00-series-roadmap/
+          weight: 2
+        - identifier: github
+          name: GitHub
+          url: https://github.com/mzf666/vla
+          weight: 3
+  en:
+    languageCode: en-US
+    languageName: English
+    weight: 2
+    contentDir: content/en
+    params:
+      languageAltTitle: 中文
+    menu:
+      main:
+        - identifier: posts
+          name: Articles
+          url: /posts/
+          weight: 1
+        - identifier: roadmap
+          name: Roadmap
+          url: /posts/00-series-roadmap/
+          weight: 2
+        - identifier: github
+          name: GitHub
+          url: https://github.com/mzf666/vla
+          weight: 3
+
+params:
+  author: Zhanfeng Mo
+  env: production
+  defaultTheme: auto
+  homeInfoParams:
+    Title: "VLA 深入浅出"
+    Content: "面向有强化学习基础的 Machine Learning PhD：从 world model、embodied imitation 到 VLA、action representation 与最新 VLA+world model 融合趋势。"
+  showBreadCrumbs: false
+  showReadingTime: true
+  showShareButtons: false
+  showPostNavLinks: true
+  showCodeCopyButtons: true
+  showToc: true
+  socialIcons:
+    - name: github
+      url: "https://github.com/mzf666"
+  label:
+    text: "VLA Tutorial"
+
+markup:
+  goldmark:
+    renderer:
+      unsafe: true
+  highlight:
+    style: monokai
+    lineNos: true
+
+outputs:
+  home:
+    - HTML
+    - RSS
+    - JSON
+

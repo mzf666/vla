@@ -1,0 +1,18 @@
+{{- $src := .Get "src" -}}
+{{- $source := .Get "source" -}}
+{{- $alt := .Get "alt" | default "Excalidraw diagram" -}}
+{{- $caption := .Get "caption" -}}
+<figure class="excalidraw-figure">
+  <div class="excalidraw-frame">
+    <img src="{{ $src | relURL }}" alt="{{ $alt }}">
+  </div>
+  {{- if or $caption $source -}}
+  <figcaption>
+    {{- with $caption -}}{{ . }}{{- end -}}
+    {{- with $source -}}
+      <a href="{{ . | relURL }}">Excalidraw source</a>
+    {{- end -}}
+  </figcaption>
+  {{- end -}}
+</figure>
+

@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="620" viewBox="0 0 1120 620" role="img" aria-label="Policy world model and VLA taxonomy">
+  <defs>
+    <filter id="rough2" x="-5%" y="-5%" width="110%" height="110%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="2" seed="13" result="noise"/>
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="1.0"/>
+    </filter>
+    <marker id="arrow2" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M2,2 L10,6 L2,10" fill="none" stroke="#222" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+  <rect width="1120" height="620" fill="#fffdf7"/>
+  <g filter="url(#rough2)" font-family="Virgil, Comic Sans MS, Bradley Hand, sans-serif">
+    <text x="54" y="62" font-size="30" fill="#1d1d1d">Three objects that are often mixed together</text>
+    <g fill="#f8f1d8" stroke="#222" stroke-width="2.4">
+      <rect x="70" y="130" width="270" height="150" rx="20"/>
+      <rect x="425" y="130" width="270" height="150" rx="20"/>
+      <rect x="780" y="130" width="270" height="150" rx="20"/>
+    </g>
+    <g font-size="25" fill="#222">
+      <text x="112" y="176">Policy</text>
+      <text x="460" y="176">World model</text>
+      <text x="850" y="176">VLA</text>
+    </g>
+    <g font-size="19" fill="#222">
+      <text x="112" y="212">maps observation to action</text>
+      <text x="112" y="244">usually no future generator</text>
+      <text x="460" y="212">predicts future dynamics</text>
+      <text x="460" y="244">state / latent / pixel</text>
+      <text x="850" y="212">language-conditioned policy</text>
+      <text x="850" y="244">image + text -> action</text>
+    </g>
+    <g stroke="#222" stroke-width="2.3" fill="none" marker-end="url(#arrow2)">
+      <path d="M205 315 C205 362, 205 392, 205 436"/>
+      <path d="M560 315 C560 362, 560 392, 560 436"/>
+      <path d="M915 315 C915 362, 915 392, 915 436"/>
+    </g>
+    <g fill="#d9f0e2" stroke="#222" stroke-width="2.4">
+      <rect x="70" y="440" width="270" height="104" rx="18"/>
+      <rect x="425" y="440" width="270" height="104" rx="18"/>
+      <rect x="780" y="440" width="270" height="104" rx="18"/>
+    </g>
+    <g font-size="20" fill="#222">
+      <text x="102" y="480">BC / diffusion policy</text>
+      <text x="102" y="512">ACT / robomimic</text>
+      <text x="452" y="480">Dreamer / TD-MPC</text>
+      <text x="452" y="512">imagination rollout</text>
+      <text x="812" y="480">OpenVLA / SmolVLA</text>
+      <text x="812" y="512">π0 / GR00T / Gemini</text>
+    </g>
+    <path d="M675 204 C720 200, 736 200, 778 204" stroke="#222" stroke-width="2.2" fill="none" marker-end="url(#arrow2)"/>
+    <text x="704" y="190" font-size="17" fill="#555">can become</text>
+    <path d="M345 204 C386 200, 392 200, 422 204" stroke="#222" stroke-width="2.2" fill="none" marker-end="url(#arrow2)"/>
+    <text x="358" y="190" font-size="17" fill="#555">can use</text>
+  </g>
+</svg>
+

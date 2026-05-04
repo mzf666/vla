@@ -1,0 +1,78 @@
+/* VLA Tutorial custom styles */
+
+.post-content pre {
+  border-radius: 8px;
+}
+
+.post-content img + em {
+  display: block;
+  text-align: center;
+  font-size: 0.9em;
+  color: var(--secondary);
+  margin-top: -0.5em;
+  margin-bottom: 1em;
+}
+
+.prerequisites,
+.course-note {
+  background: var(--code-bg);
+  border-left: 4px solid var(--primary);
+  padding: 1em 1.5em;
+  margin: 1em 0;
+  border-radius: 0 8px 8px 0;
+}
+
+.excalidraw-figure {
+  margin: 1.6rem 0;
+}
+
+.excalidraw-frame {
+  background:
+    radial-gradient(circle at 1px 1px, rgba(127, 127, 127, 0.18) 1px, transparent 0),
+    var(--theme);
+  background-size: 18px 18px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 1rem;
+  overflow-x: auto;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+}
+
+.excalidraw-frame img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto;
+}
+
+.excalidraw-figure figcaption {
+  color: var(--secondary);
+  font-size: 0.9rem;
+  text-align: center;
+  margin-top: 0.6rem;
+}
+
+.excalidraw-figure figcaption a {
+  margin-left: 0.75rem;
+  white-space: nowrap;
+}
+
+.roadmap-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+
+.roadmap-card {
+  background: var(--entry);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 1rem;
+}
+
+.roadmap-card strong {
+  display: block;
+  margin-bottom: 0.35rem;
+}
+

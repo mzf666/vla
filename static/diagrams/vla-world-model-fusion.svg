@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="620" viewBox="0 0 1120 620" role="img" aria-label="VLA and world model fusion patterns">
+  <defs>
+    <filter id="rough3" x="-5%" y="-5%" width="110%" height="110%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.018" numOctaves="2" seed="23" result="noise"/>
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="1"/>
+    </filter>
+    <marker id="arrow3" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M2,2 L10,6 L2,10" fill="none" stroke="#222" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+  <rect width="1120" height="620" fill="#fffdf7"/>
+  <g filter="url(#rough3)" font-family="Virgil, Comic Sans MS, Bradley Hand, sans-serif">
+    <text x="56" y="62" font-size="30" fill="#1d1d1d">How VLA and world models are converging</text>
+    <g fill="#f8f1d8" stroke="#222" stroke-width="2.4">
+      <rect x="74" y="136" width="210" height="108" rx="18"/>
+      <rect x="456" y="136" width="210" height="108" rx="18"/>
+      <rect x="838" y="136" width="210" height="108" rx="18"/>
+      <rect x="265" y="382" width="240" height="118" rx="18"/>
+      <rect x="615" y="382" width="240" height="118" rx="18"/>
+    </g>
+    <g font-size="21" fill="#222">
+      <text x="104" y="176">observation</text>
+      <text x="104" y="206">image + state</text>
+      <text x="486" y="176">shared model</text>
+      <text x="486" y="206">tokens / latents</text>
+      <text x="868" y="176">action chunk</text>
+      <text x="868" y="206">or action tokens</text>
+      <text x="295" y="426">future prediction</text>
+      <text x="295" y="456">latent / image / reward</text>
+      <text x="645" y="426">policy improvement</text>
+      <text x="645" y="456">planning / alignment</text>
+    </g>
+    <g stroke="#222" stroke-width="2.4" fill="none" marker-end="url(#arrow3)">
+      <path d="M286 190 C340 190, 392 190, 452 190"/>
+      <path d="M668 190 C722 190, 774 190, 834 190"/>
+      <path d="M560 248 C526 292, 468 336, 402 378"/>
+      <path d="M438 502 C492 548, 640 548, 690 504"/>
+      <path d="M720 380 C752 330, 800 286, 890 248"/>
+    </g>
+    <text x="156" y="310" font-size="19" fill="#555">WorldVLA / RynnVLA: unify action and future generation.</text>
+    <text x="156" y="340" font-size="19" fill="#555">Gemini Robotics + ER: separate embodied reasoning and action execution.</text>
+    <text x="156" y="570" font-size="19" fill="#555">Key question: does future prediction directly change action, or only regularize representation learning?</text>
+  </g>
+</svg>
+

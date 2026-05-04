@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="560" viewBox="0 0 1120 560" role="img" aria-label="VLA learning roadmap">
+  <defs>
+    <filter id="rough" x="-5%" y="-5%" width="110%" height="110%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.015" numOctaves="2" seed="7" result="noise"/>
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="1.1"/>
+    </filter>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M2,2 L10,6 L2,10" fill="none" stroke="#222" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+  <rect width="1120" height="560" fill="#fffdf7"/>
+  <g filter="url(#rough)" font-family="Virgil, Comic Sans MS, Bradley Hand, sans-serif">
+    <text x="52" y="62" font-size="30" fill="#1d1d1d">VLA learning path: from control to embodied foundation models</text>
+    <g fill="#f8f1d8" stroke="#222" stroke-width="2.3">
+      <rect x="56" y="116" width="180" height="112" rx="18"/>
+      <rect x="286" y="116" width="180" height="112" rx="18"/>
+      <rect x="516" y="116" width="180" height="112" rx="18"/>
+      <rect x="746" y="116" width="180" height="112" rx="18"/>
+    </g>
+    <g font-size="21" fill="#222">
+      <text x="86" y="156">0. Problem</text>
+      <text x="86" y="186">policy / world</text>
+      <text x="86" y="214">model / VLA</text>
+      <text x="316" y="156">1. World model</text>
+      <text x="316" y="186">latent dynamics</text>
+      <text x="316" y="214">imagination</text>
+      <text x="546" y="156">2. Imitation</text>
+      <text x="546" y="186">dataset / ACT</text>
+      <text x="546" y="214">rollout / eval</text>
+      <text x="776" y="156">3. VLA</text>
+      <text x="776" y="186">VLM backbone</text>
+      <text x="776" y="214">action output</text>
+    </g>
+    <g stroke="#222" stroke-width="2.4" fill="none" marker-end="url(#arrow)">
+      <path d="M240 172 C254 172, 266 172, 282 172"/>
+      <path d="M470 172 C484 172, 496 172, 512 172"/>
+      <path d="M700 172 C714 172, 726 172, 742 172"/>
+    </g>
+    <g fill="#d9f0e2" stroke="#222" stroke-width="2.3">
+      <rect x="166" y="318" width="230" height="112" rx="18"/>
+      <rect x="446" y="318" width="230" height="112" rx="18"/>
+      <rect x="726" y="318" width="230" height="112" rx="18"/>
+    </g>
+    <g font-size="21" fill="#222">
+      <text x="196" y="358">4. Action rep</text>
+      <text x="196" y="388">continuous / chunk</text>
+      <text x="196" y="416">token / diffusion</text>
+      <text x="476" y="358">5. Systems</text>
+      <text x="476" y="388">latency / async</text>
+      <text x="476" y="416">quant / on-device</text>
+      <text x="756" y="358">6. Frontier</text>
+      <text x="756" y="388">VLA + world model</text>
+      <text x="756" y="416">research entry</text>
+    </g>
+    <path d="M840 232 C830 284, 314 260, 282 314" fill="none" stroke="#222" stroke-width="2.4" marker-end="url(#arrow)"/>
+    <path d="M400 374 C414 374, 426 374, 442 374" fill="none" stroke="#222" stroke-width="2.4" marker-end="url(#arrow)"/>
+    <path d="M680 374 C694 374, 706 374, 722 374" fill="none" stroke="#222" stroke-width="2.4" marker-end="url(#arrow)"/>
+    <text x="56" y="500" font-size="19" fill="#555">Fixed weekly output: 1 reading note + 1 Excalidraw method diagram + 1 minimal experiment + 1 question list.</text>
+  </g>
+</svg>
+
