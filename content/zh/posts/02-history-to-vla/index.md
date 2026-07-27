@@ -1,7 +1,7 @@
 ---
 title: "发展脉络：从 Imitation Learning 到 VLA"
 date: 2026-05-02T09:00:00+08:00
-draft: false
+draft: true
 tags: ["history", "vla", "robot-learning", "foundation-model"]
 series: ["VLA Tutorial"]
 weight: 3

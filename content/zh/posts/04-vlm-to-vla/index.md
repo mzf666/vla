@@ -1,7 +1,7 @@
 ---
 title: "从 VLM 到 VLA：视觉语言模型如何变成机器人 Policy"
 date: 2026-04-29T09:00:00+08:00
-draft: false
+draft: true
 tags: ["vla", "vlm", "openvla", "smolvla"]
 series: ["VLA Tutorial"]
 weight: 6

@@ -11,7 +11,7 @@
 | 主题 | PaperMod（与 `llm-infra`、`cli-agent` 保持一致） |
 | 主线 | `ROADMAP.md`: 基础概念 -> 经典方法 -> 工程复现 -> 前沿方向 |
 | 读者 | 有 RL / ML 基础、希望进入 embodied policy / VLA 的 PhD |
-| 可视化 | Excalidraw 源文件 + SVG 导出，通过 `excalidraw` shortcode 嵌入 |
+| 可视化 | 手绘图：Excalidraw 源文件 + SVG 导出；程序化图：生成脚本 + SVG 导出。两者都必须是矢量 |
 | 与主站关系 | 完全解耦，主站只加 `VLA` 导航入口 |
 
 ## 命令
@@ -30,7 +30,23 @@
 {{< excalidraw src="/diagrams/example.svg" source="/diagrams/example.excalidraw" alt="..." caption="..." >}}
 ```
 
-所有流程图、算法图、方法图、taxonomy 图都必须走这条路径，不再使用 Mermaid。
+所有流程图、算法图、方法图、taxonomy 图都必须是矢量图，不再使用 Mermaid。
+
+## 程序化生成图约定
+
+当图表的数值必须与某个 fact ledger 保持一致、或需要在结论更新后重新生成时，用生成脚本而非
+Excalidraw。此时**脚本就是源文件**，取代 `.excalidraw` 的地位。
+
+- 生成脚本：随文章放在其 workbench 模块内（如 `modules/B01-*/code/figures.py`）
+- 导出图：`static/diagrams/<slug>-<figure>.svg`（与 PNG 一并生成，站内只用 SVG）
+- 正文嵌入：同样走 `excalidraw` shortcode，`source` 指向生成脚本
+
+```go-html-template
+{{< excalidraw src="/diagrams/pi07-f06-architecture.svg" source="/diagrams/pi07-figures.py" alt="..." caption="..." >}}
+```
+
+理由：手绘图的价值在于表达，程序化图的价值在于**可复现**——数值变了重新跑一次即可，
+而 `.excalidraw` 文件做不到这一点。矢量输出的要求对两条路径同样成立。
 
 ## 8 篇正文规划
 

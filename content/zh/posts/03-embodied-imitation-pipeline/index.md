@@ -1,7 +1,7 @@
 ---
 title: "非 VLA 的 Embodied Imitation Pipeline：先看懂机器人学习工程栈"
 date: 2026-04-30T09:00:00+08:00
-draft: false
+draft: true
 tags: ["imitation-learning", "lerobot", "act", "diffusion-policy", "robomimic"]
 series: ["VLA Tutorial"]
 weight: 5

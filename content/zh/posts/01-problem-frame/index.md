@@ -1,7 +1,7 @@
 ---
 title: "问题框架：Policy、World Model 和 VLA 的边界"
 date: 2026-05-03T09:00:00+08:00
-draft: false
+draft: true
 tags: ["vla", "world-model", "policy", "taxonomy"]
 series: ["VLA Tutorial"]
 weight: 2

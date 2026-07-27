@@ -1,7 +1,7 @@
 ---
 title: "VLA 深入浅出：系列路线图"
 date: 2026-05-04T09:00:00+08:00
-draft: false
+draft: true
 tags: ["vla", "world-model", "robot-learning", "roadmap"]
 series: ["VLA Tutorial"]
 weight: 1

@@ -1,7 +1,7 @@
 ---
 title: "Action Representation：连续动作、Action Chunk、Token、Diffusion 与 Flow"
 date: 2026-04-28T09:00:00+08:00
-draft: false
+draft: true
 tags: ["action-representation", "diffusion-policy", "flow-matching", "pi0"]
 series: ["VLA Tutorial"]
 weight: 7

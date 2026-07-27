@@ -1,7 +1,7 @@
 ---
 title: "博士研究切入点：从复现 Baseline 到提出可验证问题"
 date: 2026-04-25T09:00:00+08:00
-draft: false
+draft: true
 tags: ["research", "vla", "experiments", "apple-silicon"]
 series: ["VLA Tutorial"]
 weight: 10

@@ -1,7 +1,7 @@
 ---
 title: "VLA + World Model 前沿：Future Prediction 是否应该成为 Policy 的一部分？"
 date: 2026-04-26T09:00:00+08:00
-draft: false
+draft: true
 tags: ["vla", "world-model", "frontier", "gemini-robotics", "genie"]
 series: ["VLA Tutorial"]
 weight: 9

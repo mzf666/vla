@@ -1,7 +1,7 @@
 ---
 title: "VLA 系统与部署：Latency、Async Inference、Quantization 与 On-Device"
 date: 2026-04-27T09:00:00+08:00
-draft: false
+draft: true
 tags: ["vla", "systems", "latency", "quantization", "on-device"]
 series: ["VLA Tutorial"]
 weight: 8

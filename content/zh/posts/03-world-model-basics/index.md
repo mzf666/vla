@@ -1,7 +1,7 @@
 ---
 title: "World Model 基础：Latent Dynamics、Imagination 与 Planning"
 date: 2026-05-01T09:00:00+08:00
-draft: false
+draft: true
 tags: ["world-model", "model-based-rl", "dreamer", "td-mpc"]
 series: ["VLA Tutorial"]
 weight: 4
