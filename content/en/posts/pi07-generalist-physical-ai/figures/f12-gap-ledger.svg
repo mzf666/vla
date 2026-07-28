@@ -6,7 +6,7 @@
   <rdf:RDF xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:cc="http://creativecommons.org/ns#" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
    <cc:Work>
     <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
-    <dc:date>2026-07-27T23:51:04.793347</dc:date>
+    <dc:date>2026-07-28T20:25:37.631334</dc:date>
     <dc:format>image/svg+xml</dc:format>
     <dc:creator>
      <cc:Agent>
@@ -32,32 +32,32 @@ z
    <g id="line2d_1">
     <path d="M 23.382 86.767488 
 L 800.118 86.767488 
-" clip-path="url(#p1320b1b186)" style="fill: none; stroke: #b8c0ca; stroke-width: 1.2; stroke-linecap: square"/>
+" clip-path="url(#p72492c96cc)" style="fill: none; stroke: #b8c0ca; stroke-width: 1.2; stroke-linecap: square"/>
    </g>
    <g id="line2d_2">
     <path d="M 23.382 130.010688 
 L 800.118 130.010688 
-" clip-path="url(#p1320b1b186)" style="fill: none; stroke: #b8c0ca; stroke-opacity: 0.6; stroke-width: 0.5; stroke-linecap: square"/>
+" clip-path="url(#p72492c96cc)" style="fill: none; stroke: #b8c0ca; stroke-opacity: 0.6; stroke-width: 0.5; stroke-linecap: square"/>
    </g>
    <g id="line2d_3">
     <path d="M 23.382 176.713344 
 L 800.118 176.713344 
-" clip-path="url(#p1320b1b186)" style="fill: none; stroke: #b8c0ca; stroke-opacity: 0.6; stroke-width: 0.5; stroke-linecap: square"/>
+" clip-path="url(#p72492c96cc)" style="fill: none; stroke: #b8c0ca; stroke-opacity: 0.6; stroke-width: 0.5; stroke-linecap: square"/>
    </g>
    <g id="line2d_4">
     <path d="M 23.382 223.416 
 L 800.118 223.416 
-" clip-path="url(#p1320b1b186)" style="fill: none; stroke: #b8c0ca; stroke-opacity: 0.6; stroke-width: 0.5; stroke-linecap: square"/>
+" clip-path="url(#p72492c96cc)" style="fill: none; stroke: #b8c0ca; stroke-opacity: 0.6; stroke-width: 0.5; stroke-linecap: square"/>
    </g>
    <g id="line2d_5">
     <path d="M 23.382 270.118656 
 L 800.118 270.118656 
-" clip-path="url(#p1320b1b186)" style="fill: none; stroke: #b8c0ca; stroke-opacity: 0.6; stroke-width: 0.5; stroke-linecap: square"/>
+" clip-path="url(#p72492c96cc)" style="fill: none; stroke: #b8c0ca; stroke-opacity: 0.6; stroke-width: 0.5; stroke-linecap: square"/>
    </g>
    <g id="line2d_6">
     <path d="M 23.382 316.821312 
 L 800.118 316.821312 
-" clip-path="url(#p1320b1b186)" style="fill: none; stroke: #b8c0ca; stroke-opacity: 0.6; stroke-width: 0.5; stroke-linecap: square"/>
+" clip-path="url(#p72492c96cc)" style="fill: none; stroke: #b8c0ca; stroke-opacity: 0.6; stroke-width: 0.5; stroke-linecap: square"/>
    </g>
    <g id="text_1">
     <!-- What you actually get: the gap ledger -->
@@ -2959,7 +2959,7 @@ z
     </g>
    </g>
    <g id="text_31">
-    <!-- pi0.7 has no public weights and no public code; openpi ships pi0 and pi0.5 only. pi0.6 is a model card, not a paper  [pi0.7 ref. 42], -->
+    <!-- pi0.7 has no public weights and no public code; openpi ships pi0 and pi0.5 only. pi0.6 is a model card, not a paper  [π0.7 ref. 42], -->
     <g style="fill: #14181d" transform="translate(23.382 399.301311) scale(0.088 -0.088)">
      <defs>
       <path id="DejaVuSansMono-2e" d="M 1528 953 
@@ -3048,6 +3048,29 @@ L 2772 -397
 L 2772 -844 
 L 1447 -844 
 L 1447 4863 
+z
+" transform="scale(0.015625)"/>
+      <path id="DejaVuSansMono-3c0" d="M 250 3500 
+L 3603 3500 
+L 3603 2925 
+L 3163 2925 
+L 3163 775 
+Q 3163 550 3239 451 
+Q 3316 353 3488 353 
+Q 3534 353 3603 361 
+Q 3672 369 3694 372 
+L 3694 -44 
+Q 3584 -84 3468 -103 
+Q 3353 -122 3238 -122 
+Q 2884 -122 2740 83 
+Q 2597 288 2597 838 
+L 2597 2925 
+L 1259 2925 
+L 1259 0 
+L 697 0 
+L 697 2925 
+L 250 2925 
+L 250 3500 
 z
 " transform="scale(0.015625)"/>
       <path id="DejaVuSansMono-34" d="M 2297 4091 
@@ -3199,21 +3222,20 @@ z
      <use xlink:href="#DejaVuSansMono-20" x="6923.583984"/>
      <use xlink:href="#DejaVuSansMono-20" x="6983.789062"/>
      <use xlink:href="#DejaVuSansMono-5b" x="7043.994141"/>
-     <use xlink:href="#DejaVuSansMono-70" x="7104.199219"/>
-     <use xlink:href="#DejaVuSansMono-69" x="7164.404297"/>
-     <use xlink:href="#DejaVuSansMono-30" x="7224.609375"/>
-     <use xlink:href="#DejaVuSansMono-2e" x="7284.814453"/>
-     <use xlink:href="#DejaVuSansMono-37" x="7345.019531"/>
-     <use xlink:href="#DejaVuSansMono-20" x="7405.224609"/>
-     <use xlink:href="#DejaVuSansMono-72" x="7465.429688"/>
-     <use xlink:href="#DejaVuSansMono-65" x="7525.634766"/>
-     <use xlink:href="#DejaVuSansMono-66" x="7585.839844"/>
-     <use xlink:href="#DejaVuSansMono-2e" x="7646.044922"/>
-     <use xlink:href="#DejaVuSansMono-20" x="7706.25"/>
-     <use xlink:href="#DejaVuSansMono-34" x="7766.455078"/>
-     <use xlink:href="#DejaVuSansMono-32" x="7826.660156"/>
-     <use xlink:href="#DejaVuSansMono-5d" x="7886.865234"/>
-     <use xlink:href="#DejaVuSansMono-2c" x="7947.070312"/>
+     <use xlink:href="#DejaVuSansMono-3c0" x="7104.199219"/>
+     <use xlink:href="#DejaVuSansMono-30" x="7164.404297"/>
+     <use xlink:href="#DejaVuSansMono-2e" x="7224.609375"/>
+     <use xlink:href="#DejaVuSansMono-37" x="7284.814453"/>
+     <use xlink:href="#DejaVuSansMono-20" x="7345.019531"/>
+     <use xlink:href="#DejaVuSansMono-72" x="7405.224609"/>
+     <use xlink:href="#DejaVuSansMono-65" x="7465.429688"/>
+     <use xlink:href="#DejaVuSansMono-66" x="7525.634766"/>
+     <use xlink:href="#DejaVuSansMono-2e" x="7585.839844"/>
+     <use xlink:href="#DejaVuSansMono-20" x="7646.044922"/>
+     <use xlink:href="#DejaVuSansMono-34" x="7706.25"/>
+     <use xlink:href="#DejaVuSansMono-32" x="7766.455078"/>
+     <use xlink:href="#DejaVuSansMono-5d" x="7826.660156"/>
+     <use xlink:href="#DejaVuSansMono-2c" x="7886.865234"/>
     </g>
     <!-- so parts of the immediate predecessor are recoverable only through pi*0.6 Sec. V-A. -->
     <g style="fill: #14181d" transform="translate(23.382 411.291999) scale(0.088 -0.088)">
@@ -3486,7 +3508,7 @@ z
   </g>
  </g>
  <defs>
-  <clipPath id="p1320b1b186">
+  <clipPath id="p72492c96cc">
    <rect x="7.2" y="7.2" width="809.1" height="432.432"/>
   </clipPath>
  </defs>

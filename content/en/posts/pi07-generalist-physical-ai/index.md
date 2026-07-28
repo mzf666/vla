@@ -88,13 +88,11 @@ A vision-language-action model is a policy. It consumes an observation and a con
 
 ![The VLA I/O contract: observation snapshot in, action chunk out](figures/f03-vla-io-contract.png)
 
-Formally, the observation is `o_t = [I_t^1 … I_t^n, q_t]` — n camera images plus the robot's joint configuration — and the model produces an action chunk `a_{t:t+H}` covering H future timesteps, of which a shorter horizon `H̃ < H` is actually executed before the model re-observes and re-plans [π0.7 §III]. The training objective is
+Formally, the observation is $o_t = [I_t^1, \ldots, I_t^n, q_t]$ — $n$ camera images plus the robot's joint configuration — and the model produces an action chunk $a_{t:t+H}$ covering $H$ future timesteps, of which a shorter horizon $\tilde{H} < H$ is actually executed before the model re-observes and re-plans [π0.7 §III]. The training objective is
 
-```
-max_θ  E_D [ log π_θ( a_{t:t+H} | o_{t−T:t}, C_t ) ]
-```
+$$\max_{\theta}\; \mathbb{E}_{\mathcal{D}}\left[\, \log \pi_{\theta}\!\left( a_{t:t+H} \mid o_{t-T:t},\, C_t \right) \right]$$
 
-where `C_t` is the context and `o_{t−T:t}` is a window of past observations [π0.7 §III, Eq. 1]. One honest caveat for readers who will reach for the likelihood: the flow-matching action expert optimizes an approximate lower bound on this quantity rather than the likelihood in closed form [π0.7 §III].
+where $C_t$ is the context and $o_{t-T:t}$ is a window of past observations [π0.7 §III, Eq. 1]. One honest caveat for readers who will reach for the likelihood: the flow-matching action expert optimizes an approximate lower bound on this quantity rather than the likelihood in closed form [π0.7 §III].
 
 For π0.7 the contract instantiates concretely. Inputs are up to 4 cameras — front, two wrist, and an optional rear view — with up to 6 history frames each, sampled at a stride of 1 second, all resized to 448×448, plus up to 3 subgoal images with the rear view omitted [π0.7 §VI-B]. The output is exactly 50 action tokens, one 50-step chunk [π0.7 §VI-B]. At runtime only 15 or 25 of those 50 steps are executed before re-planning [π0.7 §VII].
 
@@ -102,7 +100,7 @@ The most instructive thing about this contract is what is **absent** from the in
 
 > **Primer — control frequency.** A robot's low-level controller expects a new target at a fixed rate. π0.7's platforms run at 50 Hz, except the UR5e which runs at 20 Hz [π0.7 §VIII]. At 50 Hz a 50-step chunk is one second of motion. This is why latency is a first-class constraint rather than a nice-to-have: if inference takes longer than the execution window, the robot stalls mid-motion.
 
-> **Primer — action chunking.** Rather than predicting one action per forward pass, the model predicts H steps jointly and the robot executes the first H̃ of them. Predicting jointly avoids the incoherent, jittery motion you get from independently sampled single steps, and it amortizes inference cost across many control cycles. H is a modelling choice; H̃ is a control choice, and they trade smoothness against reactivity [π0.7 §VII].
+> **Primer — action chunking.** Rather than predicting one action per forward pass, the model predicts $H$ steps jointly and the robot executes the first $\tilde{H}$ of them. Predicting jointly avoids the incoherent, jittery motion you get from independently sampled single steps, and it amortizes inference cost across many control cycles. $H$ is a modelling choice; $\tilde{H}$ is a control choice, and they trade smoothness against reactivity [π0.7 §VII].
 
 > **Primer — embodiment.** An "embodiment" is a specific robot body: its kinematics, its degrees of freedom, its gripper, its camera placement. π0.7 spans bimanual mobile manipulators with two 6-DoF arms plus a lift and a holonomic base, a static bimanual platform, a bimanual UR5e with Robotiq grippers, and single-arm systems [π0.7 §VIII, Fig. 4]. The action space differs across them, which is what makes cross-embodiment transfer a real problem rather than a relabelling exercise.
 
@@ -153,7 +151,7 @@ Keep that ratio in mind. A 240 ms budget against a 38 ms floor is the headroom t
 | Subgoal images | up to 3 (rear omitted) | [π0.7 §VI-B] |
 | Image resolution | 448×448 | [π0.7 §VI-B] |
 | Action chunk length H | 50 steps | [π0.7 §VI-B] |
-| Executed horizon H̃ | 15 or 25 | [π0.7 §VII] |
+| Executed horizon $\tilde{H}$ | 15 or 25 | [π0.7 §VII] |
 | Denoising steps | 5 | [π0.7 §VII] |
 | Control rate | 50 Hz; UR5e 20 Hz | [π0.7 §VIII] |
 | RTC simulated delay | 0–12 timesteps = 240 ms at 50 Hz | [π0.7 §VI-B] |
@@ -193,9 +191,9 @@ Reduce π\*0.6 to "they used RL" and you miss the mechanism π0.7 depends on [π
 
 The method is **RECAP** — RL with Experience and Corrections via Advantage-conditioned Policies [π\*0.6 abstract, §IV]. It has three subroutines: collect data by running the policy and labelling episode outcomes, optionally with human corrective interventions; train a value function on everything collected so far; and train the policy conditioned on an optimality indicator derived from that value function [π\*0.6 §IV-C, Alg. 1].
 
-The value function is a multi-task **distributional** critic with the same architecture as the policy but a smaller 670M VLM backbone, also initialized from Gemma 3 [π\*0.6 §V-C, Fig. 3]. It discretizes returns into B = 201 bins and trains by cross-entropy over Monte Carlo returns [π\*0.6 §IV-A]. The reward is deliberately trivial so it applies to any task: 0 at the terminal step on success, a large negative constant on failure, and −1 otherwise, with values normalized per task by maximum episode length into the range (−1, 0) [π\*0.6 §V-C, Eq. 5].
+The value function is a multi-task **distributional** critic with the same architecture as the policy but a smaller 670M VLM backbone, also initialized from Gemma 3 [π\*0.6 §V-C, Fig. 3]. It discretizes returns into $B = 201$ bins and trains by cross-entropy over Monte Carlo returns [π\*0.6 §IV-A]. The reward is deliberately trivial so it applies to any task: 0 at the terminal step on success, a large negative constant on failure, and −1 otherwise, with values normalized per task by maximum episode length into the range $(-1, 0)$ [π\*0.6 §V-C, Eq. 5].
 
-Then the move that matters. Rather than a policy-gradient update — awkward for flow-matching policies, which do not offer a tractable log-likelihood — RECAP **conditions** the policy on a binarized advantage indicator inserted as plain text: "Advantage: positive" or "Advantage: negative" [π\*0.6 §V-B]. The indicator sits after the language input but before the actions, so only the action log-likelihoods are affected [π\*0.6 §V-B]. The threshold is set at the 30% percentile of values the critic predicts for that task, and human corrections are forced to positive on the assumption that expert interventions are good actions [π\*0.6 §V-D, §IV-B]. Because the indicator is randomly omitted during training, classifier-free guidance is available at inference [π\*0.6 §V-B].
+Then the move that matters. Rather than a policy-gradient update — awkward for flow-matching policies, which do not offer a tractable log-likelihood — RECAP **conditions** the policy on a binarized advantage indicator inserted as plain text: "Advantage: positive" or "Advantage: negative" [π\*0.6 §V-B]. The indicator sits after the language input but before the actions, so only the action log-likelihoods are affected [π\*0.6 §V-B]. The threshold $\varepsilon_{\ell}$ is set at the 30% percentile of values the critic predicts for that task, and human corrections are forced to positive on the assumption that expert interventions are good actions [π\*0.6 §V-D, §IV-B]. Because the indicator is randomly omitted during training, classifier-free guidance is available at inference [π\*0.6 §V-B].
 
 Two engineering details generalize beyond this paper. Each iteration finetunes from the *pre-trained* checkpoint rather than from the previous iteration, which avoids drift across rounds [π\*0.6 §V-D]. And specialists are finetuned from the pre-trained model while the final generalist is trained from scratch [π\*0.6 §IV-C]. The payoff: RECAP more than doubles task throughput and roughly halves the failure rate on the hardest tasks, enough to make espresso drinks for 13 hours straight and fold novel laundry in a new home for over 2 hours without interruption [π\*0.6 abstract, §I].
 
@@ -209,7 +207,7 @@ MEM is Multi-Scale Embodied Memory, and it exists because conditioning a policy 
 
 MEM splits memory by timescale [MEM abstract, §III-A]. **Long-horizon** memory is a *language* summary that the high-level policy maintains, predicting the updated summary from its own previous summary plus the current observation [MEM §III-B]. Training data for those updates comes from an off-the-shelf LLM that summarizes past subtasks and their success indicators, instructed to remove or compress whenever appropriate [MEM §III-B]. Compression is the point: naively concatenating all past subtask instructions works significantly worse, because at inference a policy repeatedly retrying a failed subtask produces sequences that never occurred in near-optimal training demonstrations [MEM §IV-A, Fig. 6].
 
-**Short-horizon** memory is a video encoder built by modifying a ViT's attention pattern: bidirectional spatial attention within each observation, plus causal temporal attention across observations at every 4th layer [MEM §III-C, Fig. 4]. That factorization drops the cost from O(n²K²) to O(Kn² + nK²) [MEM §III-C]. Two properties make it free to adopt: only the current timestep's representation is passed onward, so the encoder emits the same token count as a memoryless single-timestep VLA [MEM §III-C]; and it introduces no new learnable parameters versus a standard single-image ViT, since memory comes from the attention pattern plus a fixed sinusoidal temporal position encoding [MEM §III-C]. At K = 1 the initialization exactly matches the source VLM because that embedding is 0 at t = 0 [MEM §III-C].
+**Short-horizon** memory is a video encoder built by modifying a ViT's attention pattern: bidirectional spatial attention within each observation, plus causal temporal attention across observations at every 4th layer [MEM §III-C, Fig. 4]. That factorization drops the cost from $O(n^2 K^2)$ to $O(Kn^2 + nK^2)$ [MEM §III-C]. Two properties make it free to adopt: only the current timestep's representation is passed onward, so the encoder emits the same token count as a memoryless single-timestep VLA [MEM §III-C]; and it introduces no new learnable parameters versus a standard single-image ViT, since memory comes from the attention pattern plus a fixed sinusoidal temporal position encoding [MEM §III-C]. At $K = 1$ the initialization exactly matches the source VLM because that embedding is $0$ at $t = 0$ [MEM §III-C].
 
 MEM pre-trains on 6 observations — 5 past plus the current — at a stride of 1 second, and can be expanded in post-training to 18 frames and 54 seconds [MEM §III-D]. Compare that to π0.7's input contract: up to 6 history frames at a stride of 1 second [π0.7 §VI-B]. π0.7 also takes MEM's state handling, projecting each proprioceptive state into the backbone embedding space with a linear projection instead of π0.6's text tokens [MEM §III-D, π0.7 §VI-B].
 
@@ -227,7 +225,7 @@ The pattern across nine generations is worth stating explicitly, because it is t
 
 ## Condition on how, not only what
 
-Standard instruction-following conditions the policy on *what* to do: a task string. π0.7's move is to expand the context `C_t` from a bare instruction into a multimodal bundle that also describes *how* the episode was produced [π0.7 §III, §IV].
+Standard instruction-following conditions the policy on *what* to do: a task string. π0.7's move is to expand the context $C_t$ from a bare instruction into a multimodal bundle that also describes *how* the episode was produced [π0.7 §III, §IV].
 
 The entire idea is legible in a single string [π0.7 §V-E]:
 
@@ -241,13 +239,13 @@ Quality: 5. Mistake: false. Control Mode: joint.<Proprioception>
 
 ## The fields
 
-**Subtask instruction** `ℓ̃_t` — an intermediate semantic subtask alongside the overall task `ℓ_t`, following π0.5. At inference it comes from a learned high-level policy, from a human coaching the robot, or it is omitted [π0.7 §V-A].
+**Subtask instruction** $\tilde{\ell}_t$ — an intermediate semantic subtask alongside the overall task $\ell_t$, following π0.5. At inference it comes from a learned high-level policy, from a human coaching the robot, or it is omitted [π0.7 §V-A].
 
-**Subgoal images** `g_t` — multi-view images of a desired near-future state. The base view carries environment and object outcomes; the wrist views carry arm and gripper outcomes [π0.7 §V-B]. This is a *visual* instruction, and it turns out to be the channel through which cross-embodiment transfer improves most.
+**Subgoal images** $g_t$ — multi-view images of a desired near-future state. The base view carries environment and object outcomes; the wrist views carry arm and gripper outcomes [π0.7 §V-B]. This is a *visual* instruction, and it turns out to be the channel through which cross-embodiment transfer improves most.
 
-**Episode metadata** `m` — three human-derived labels. *Overall speed* is the episode length in timesteps, binned in 500-step intervals, so an episode of 1750–2250 steps is presented as "2000 steps" [π0.7 §V-C]. *Overall quality* is an integer from 1 to 5, with 5 best [π0.7 §V-C]. *Mistake* is a boolean per action segment, coarsely annotated by humans [π0.7 §V-C].
+**Episode metadata** $m$ — three human-derived labels. *Overall speed* is the episode length in timesteps, binned in 500-step intervals, so an episode of 1750–2250 steps is presented as "2000 steps" [π0.7 §V-C]. *Overall quality* is an integer from 1 to 5, with 5 best [π0.7 §V-C]. *Mistake* is a boolean per action segment, coarsely annotated by humans [π0.7 §V-C].
 
-**Control mode** `c ∈ {joint, ee}` — whether the action space is joint positions or end-effector poses [π0.7 §V-D].
+**Control mode** $c \in \{\mathrm{joint},\, \mathrm{ee}\}$ — whether the action space is joint positions or end-effector poses [π0.7 §V-D].
 
 Metadata is the thesis in concrete form. "Speed: 8000" does not describe the task; it describes the *episode* the actions were drawn from. A slow, clumsy demonstration is no longer noise to be filtered — it is a correctly-labelled example of slow, clumsy behavior, and its presence sharpens the model's notion of what "fast" and "high-quality" mean [π0.7 §IX-E].
 
@@ -275,7 +273,7 @@ Because the model has learned the conditional distribution over behavior modes, 
 
 The runtime settings are unapologetic: the speed prompt is set per task to the **15th percentile** of that task's episode length — that is, ask for a run faster than the great majority of training demonstrations; quality is always set to **5**; and mistake is always set to **false** [π0.7 §VII]. The system is trained on mediocre data and then asked, at inference, to behave like the best of it.
 
-And because dropout produced a model that works both with and without metadata, classifier-free guidance is directly available. π0.7 applies CFG to the episode metadata with weight β ∈ {1.3, 1.7, 2.2} [π0.7 §VII]. You already know this mechanism from diffusion: extrapolate away from the unconditional prediction to push harder toward the conditioned mode. Here the "condition" is not a text prompt describing content — it is a description of *behavioral quality*. Turning up β turns up how emphatically the policy commits to being fast, clean and error-free.
+And because dropout produced a model that works both with and without metadata, classifier-free guidance is directly available. π0.7 applies CFG to the episode metadata with weight $\beta \in \{1.3,\, 1.7,\, 2.2\}$ [π0.7 §VII]. You already know this mechanism from diffusion: extrapolate away from the unconditional prediction to push harder toward the conditioned mode. Here the "condition" is not a text prompt describing content — it is a description of *behavioral quality*. Turning up $\beta$ turns up how emphatically the policy commits to being fast, clean and error-free.
 
 That is the whole idea [π0.7 §IV]. Everything in the remaining parts is the machinery required to make it work at scale.
 
@@ -295,7 +293,7 @@ That is the whole idea [π0.7 §IV]. Everything in the remaining parts is the ma
 | Runtime speed prompt | 15th percentile of task episode length | [π0.7 §VII] |
 | Runtime quality prompt | always 5 | [π0.7 §VII] |
 | Runtime mistake prompt | always false | [π0.7 §VII] |
-| CFG weight β on metadata | 1.3, 1.7 or 2.2 | [π0.7 §VII] |
+| CFG weight $\beta$ on metadata | 1.3, 1.7 or 2.2 | [π0.7 §VII] |
 
 ---
 
@@ -484,7 +482,11 @@ One inference-time detail is genuinely clever. For classifier-free guidance, the
 
 The world model's job is to generate subgoal images: given the current observation and the intended subtask, produce what the near future should look like [π0.7 §V-B].
 
-Its objective is conditional flow matching against a ground-truth subgoal, `max_ψ E[L_CFM(g*_t, g_ψ(o_t, ℓ̃_t, m))]`, where `g*_t = o_{t_end}` is taken from segment ends with especially high-quality subtask labels [π0.7 §V-B]. Each training example consists of a subtask instruction, 3 camera inputs, and 3 target images, where the target timestep is the last of the segment [π0.7 App. C].
+Its objective is conditional flow matching against a ground-truth subgoal [π0.7 §V-B]:
+
+$$\max_{\psi}\; \mathbb{E}\left[\, \mathcal{L}_{\mathrm{CFM}}\!\left( g^{*}_{t},\; g_{\psi}(o_t,\, \tilde{\ell}_t,\, m) \right) \right]$$
+
+where the ground-truth subgoal $g^{*}_{t} = o_{t_{\mathrm{end}}}$ is taken from segment ends with especially high-quality subtask labels [π0.7 §V-B]. Each training example consists of a subtask instruction, 3 camera inputs, and 3 target images, where the target timestep is the last of the segment [π0.7 App. C].
 
 Following BAGEL, camera inputs are processed by both a ViT for semantic understanding and a VAE for fine-grained image detail [π0.7 App. C]. The two paths use different resolutions — ViT inputs at 448×336, VAE inputs including targets at 512×384 — because their patch sizes differ, 14 and 16 respectively [π0.7 App. C]. That is a nice concrete instance of a constraint that only shows up in implementation: **resolution is downstream of patch size**, and mixing two tokenizers means reconciling their grids.
 
@@ -611,12 +613,12 @@ That is a substantial list, and it is the honest headline of this part: **the co
 
 The deployment loop has four moving pieces [π0.7 §VII, Alg. 1]:
 
-1. **Sample a subgoal** from the world model: `g* ~ p_ψ(·|o_t, ℓ̃, m)` [π0.7 §VII, Alg. 1]
-2. **Assemble the context** `C = {ℓ, ℓ̃, g*, m, c}` — overall task, subtask, subgoal images, metadata, control mode [π0.7 §VII, Alg. 1]
-3. **Sample an action chunk** `a_{t:t+H} ~ π_θ(·|o_{t−T:t}, C)` using 5 denoising steps [π0.7 §VII, Alg. 1]
-4. **Re-plan**: execute H̃ steps, then re-infer; re-sample subgoals when the subtask `ℓ̃` changes or a Δ-timer elapses [π0.7 §VII, Alg. 1]
+1. **Sample a subgoal** from the world model: $g^{*} \sim p_{\psi}(\cdot \mid o_t,\, \tilde{\ell},\, m)$ [π0.7 §VII, Alg. 1]
+2. **Assemble the context** $C = \{\ell,\, \tilde{\ell},\, g^{*},\, m,\, c\}$ — overall task, subtask, subgoal images, metadata, control mode [π0.7 §VII, Alg. 1]
+3. **Sample an action chunk** $a_{t:t+H} \sim \pi_{\theta}(\cdot \mid o_{t-T:t},\, C)$ using 5 denoising steps [π0.7 §VII, Alg. 1]
+4. **Re-plan**: execute $\tilde{H}$ steps, then re-infer; re-sample subgoals when the subtask $\tilde{\ell}$ changes or a $\Delta$-timer elapses [π0.7 §VII, Alg. 1]
 
-The runtime constants: **5** denoising steps; execute **15 or 25** of the 50-step chunk; refresh subgoals on semantic-intent change or every **Δ = 4 s**, whichever comes first; CFG weight β ∈ **{1.3, 1.7, 2.2}** on the episode metadata [π0.7 §VII]. The 4-second interval is chosen to match SuSIE [π0.7 App. C].
+The runtime constants: **5** denoising steps; execute **15 or 25** of the 50-step chunk; refresh subgoals on semantic-intent change or every $\Delta = 4$ s, whichever comes first; CFG weight $\beta \in \{1.3,\, 1.7,\, 2.2\}$ on the episode metadata [π0.7 §VII]. The 4-second interval is chosen to match SuSIE [π0.7 App. C].
 
 ## Asynchrony is the load-bearing idea
 
@@ -645,9 +647,9 @@ Read those three numbers together and the engineering discipline is obvious [π0
 | Parameter | Value | Source |
 |---|---|---|
 | Denoising steps | 5 | [π0.7 §VII] |
-| Executed horizon H̃ | 15 or 25 of 50 | [π0.7 §VII] |
-| Subgoal refresh Δ | 4 s, or on intent change | [π0.7 §VII, App. C] |
-| CFG weight β | 1.3, 1.7 or 2.2 on metadata | [π0.7 §VII] |
+| Executed horizon $\tilde{H}$ | 15 or 25 of 50 | [π0.7 §VII] |
+| Subgoal refresh $\Delta$ | 4 s, or on intent change | [π0.7 §VII, App. C] |
+| CFG weight $\beta$ | 1.3, 1.7 or 2.2 on metadata | [π0.7 §VII] |
 | Speed prompt | 15th percentile of task episode length | [π0.7 §VII] |
 | Quality prompt | always 5 | [π0.7 §VII] |
 | Mistake prompt | always false | [π0.7 §VII] |
