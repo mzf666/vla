@@ -366,8 +366,6 @@ Model-aware quantization holds **97.6%**; a generic LLM quantizer collapses it t
 
 ---
 
-# Part 9 — The plan
-
 ## Edge-native, stated exactly
 
 > Compute siting is a business decision, not a capability ceiling.
@@ -376,35 +374,7 @@ Latency-absorbing training · few-step heads · bandwidth-first specs · a stage
 
 It rests on one result and falls with it: **200 ms** absorbed without measurable loss [arXiv:2506.07339].
 
----
-
-## The build order
-
-![](figures/f09-milestone-ladder.png)
-
----
-
-## Why M4 is the investor slide
-
-Through M3, every robot is priced at a datacentre GPU drawing **700 W** [spec: NVIDIA H100 SXM].
-
-M4 replaces it with a **\$3,499** module at **40–130 W** [spec: NVIDIA Jetson AGX Thor].
-
-That is the difference between a demo and a business — and it turns on thermals, mounting, and power delivery.
-
----
-
-## Where the money is not
-
-**1,600** demos ÷ **111** demos/h ≈ **14 h**, on **4** stations at **\$371** each [arXiv:2402.10329].
-
-The diversity recipe that generalizes costs **low thousands** to collect [arXiv:2410.18647].
-
-The money goes to fixtures, fleet uptime, and the **130 W** migration [spec: NVIDIA Jetson AGX Thor].
-
----
-
-# Part 10 — What I need from you
+# Part 9 — Five problems that are yours
 
 ## Five problems that are yours
 

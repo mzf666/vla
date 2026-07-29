@@ -122,7 +122,7 @@ A later result refined how to spend a compute budget: model size and data should
 
 ## Why even this is contested
 
-One honesty beat, because this room will be asked to fund decisions on the strength of these curves. A replication found that the compute-optimal paper's own fitted constants imply roughly **70** tokens per parameter, inconsistent with both its other estimation methods and with the 20-to-1 rule it published [arXiv:2404.10102]. The scaling law is a robust *trend*. It is not a precise constant, and anyone quoting it to three significant figures is overselling.
+One honesty beat, because these curves get quoted in decisions that cost real money. A replication found that the compute-optimal paper's own fitted constants imply roughly **70** tokens per parameter, inconsistent with both its other estimation methods and with the 20-to-1 rule it published [arXiv:2404.10102]. The scaling law is a robust *trend*. It is not a precise constant, and anyone quoting it to three significant figures is overselling.
 
 ## The three prerequisites
 
@@ -138,7 +138,7 @@ That third one deserves a note, because it is easy to mistake for an aesthetic c
 
 You will recognize the shape of that argument. It is the same one you make when you choose a mechanism that a manufacturing process is good at, over one that is nominally better on paper.
 
-Hold those three. The rest of this talk is what happens when you check them against robots.
+Hold those three. The rest of this post is what happens when you check them against robots.
 
 ---
 
@@ -172,7 +172,7 @@ Three failures, and each one names a workstream rather than a research topic.
 - The free-data failure gives you the **data engine**, and a second question of what to build the model out of, which splits into **model and action representation** and **training and post-training** [arXiv:2410.18647].
 - The real-time constraint gives you **runtime and edge** [arXiv:2506.07339].
 
-Five workstreams, all derived rather than chosen. Nothing in the rest of this talk is a survey detour; each part exists because a prerequisite failed.
+Five workstreams, all derived rather than chosen. Nothing in the rest of this post is a survey detour; each part exists because a prerequisite failed.
 
 ---
 
@@ -209,9 +209,9 @@ Finally, the human running the test is part of the instrument. In a study spanni
 
 Every one of those techniques attacks the statistics and none of them attacks the binding constraint, which is the **reset**. Sequential testing reduces how many trials you need; it does not make a trial cheaper. Distributed evaluation spreads the cost across institutions; it does not reduce it. The reason the field runs 10 trials instead of 387 is that a human has to walk over and put the objects back [arXiv:2510.17950].
 
-That is a fixture problem, and it is the first of five places in this talk where the ceiling on machine learning progress is set by mechanical design.
+That is a fixture problem, and it is the first of five places in this post where the ceiling on machine learning progress is set by mechanical design.
 
-## Our MVP
+## The minimum viable path
 
 Build the instrument before buying the data.
 
@@ -219,9 +219,9 @@ Build the instrument before buying the data.
 - **Image-referenced scene reset**, so the scene is restored against a reference photograph rather than an operator's judgement — the documented fix for the **0%**-to-**100%** operator effect [arXiv:2510.17950].
 - **Partial-credit rubrics** rather than binary success, scored against a fixed scale — the published rubrics top out at **12** and **6** points for their respective tasks [arXiv:2604.15483 §IX]. This is what makes the **70%** trial saving available [arXiv:2603.13616].
 - **Sequential testing** as the default stopping rule, not a fixed trial count [arXiv:2506.18123].
-- **Photon-to-torque instrumentation**, described in Part 8, which becomes the first thing this program publishes [repo: openpi websocket_policy_server.py].
+- **Photon-to-torque instrumentation**, described in Part 8 — the measurement the field is missing entirely [repo: openpi websocket_policy_server.py].
 
-The gate for this milestone is not "we have an eval harness." It is: **the harness can distinguish a 10-point difference in success rate using fewer trials than a fixed-sample design would need** [computed: two-proportion test, alpha 0.05, 80% power].
+The bar is not "we have an eval harness." It is: **the harness can distinguish a 10-point difference in success rate using fewer trials than a fixed-sample design would need** [computed: two-proportion test, alpha 0.05, 80% power].
 
 ---
 
@@ -289,12 +289,12 @@ The result that makes this worth the annotation cost: with metadata conditioning
 
 Nobody knows the general rule. What is clear is that the choice is fleet-dependent, and that labelling converts a liability into an asset if you can afford the annotation.
 
-## Our MVP
+## The minimum viable path
 
 - **Buy diversity, not volume**, at the validated recipe: **32** environment-object pairs at **50** demonstrations each, one distinct object per environment [arXiv:2410.18647].
 - **Handheld rigs for throughput**, at **\$371** a station, reserving conventional teleoperation for the cases that need force feedback [arXiv:2402.10329].
 - **Metadata in the schema from day one** — speed, quality, mistake flag, control mode — because retrofitting annotations onto collected episodes costs more than recording them [arXiv:2604.15483 §V].
-- **A wrench and tactile channel in the schema from day one, even though the model will not consume it yet.** This is the cheapest option this program buys. Part 10 explains why it may be the most valuable [arXiv:2505.22159].
+- **A wrench and tactile channel in the schema from day one, even though the model will not consume it yet.** It is the cheapest option on this list. Part 9 explains why it may be the most valuable [arXiv:2505.22159].
 - **Co-train on open corpora rather than collecting more yourself.** Open data can be **9.1%** of a working mixture [arXiv:2410.24164], and in-domain data as little as **2.4%** when the remainder is right [arXiv:2504.16054].
 
 ---
@@ -344,7 +344,7 @@ Three caveats belong on the record.
 
 **Reproducibility is uneven.** One widely-cited system has no paper at all [blog: Figure Helix]. Another discloses no parameter counts, control frequencies or chunk lengths [arXiv:2510.03342]. Build on what you can actually inspect.
 
-## Our MVP
+## The minimum viable path
 
 - **Chunk, and use a flow-matching or L1 head at 5 steps.** Reach for diffusion only after you have *measured* a multimodality failure, not because a paper recommended it [arXiv:2502.19645].
 - **Fine-tune an open checkpoint; do not pretrain a vision-language model.** The disclosed floors are modest: over **8** GB of VRAM to infer, **22.5** GB for low-rank fine-tuning, **70** GB for a full fine-tune [repo: openpi README].
@@ -392,7 +392,7 @@ Third, the cautionary tale. Reinforcement learning in simulation took a long-hor
 
 Running reinforcement learning directly on the full backbone destabilizes training and degrades performance; the methods that work freeze the backbone and train only the action head, or alternate between online updates and supervised replay [arXiv:2501.16664]. And none of this removes the verifier problem — it relocates it into a classifier you have to train and trust.
 
-## Our MVP
+## The minimum viable path
 
 - **Build a binary success classifier first**, before any reinforcement learning. About **1000** labelled frames and **5** minutes of teleoperation, and it currently outperforms a general-purpose model used as a judge [arXiv:2410.21845].
 - **Then human-in-the-loop RL on exactly one task**, the one whose failure dominates your cycle time [arXiv:2410.21845].
@@ -423,7 +423,7 @@ Adjacent chunks can jump between different strategies, producing discontinuities
 
 The fix is elegant and it changes the economics of this entire program. Generate the next chunk while executing the current one; freeze the actions already committed to the hardware; and let the model *inpaint* the remainder, soft-masking the middle [arXiv:2506.07339]. Measured over **480** episodes and **28** robot-hours: **no degradation at 100 ms and 200 ms of injected delay**, and continued success beyond **300** ms, where synchronous execution degrades sharply and naive temporal smoothing "does not work at all" and triggered protective stops [arXiv:2506.07339]. Baked into training by sampling delays of **0** to **12** timesteps, it costs nothing at inference and yields a **240** ms budget at **50** Hz [computed: 12 timesteps at 50 Hz].
 
-**That result is the load-bearing premise of this program's thesis.** If a system tolerates a few hundred milliseconds of delay without losing performance, then where the compute sits stops being a capability question and becomes a cost, power, and packaging question.
+**That result is the load-bearing premise of the whole edge argument.** If a system tolerates a few hundred milliseconds of delay without losing performance, then where the compute sits stops being a capability question and becomes a cost, power, and packaging question.
 
 ## The edge reality, stated honestly
 
@@ -445,100 +445,17 @@ The leverage is in the algorithm. Restructuring the action head took one system 
 
 Quantization is nearly free **if it is done with knowledge of this model class**, and catastrophic otherwise. A method designed for these models holds **97.6%** against **97.1%** at full precision while shrinking the model from **4.27** GB to **1.28** GB [arXiv:2602.20309]. A general-purpose language-model quantizer applied to the same network collapses it to **76.3%** — a **21**-point drop [arXiv:2602.20309]. And there is a cliff: **3.0** bits per weight holds **94.8%**, but **2.0** bits falls to **48.0%** [arXiv:2605.24011].
 
-## Our MVP
+## The minimum viable path
 
 - **Wire asynchronous execution and real-time chunking into the runtime.** This is not yet done in the open stacks: the reference client is synchronous and blocks on every chunk [repo: openpi websocket_policy_server.py]. It is the single highest-return engineering item in this document.
 - **Spend on few-step distillation and model-aware quantization before spending on silicon.** **26x** against **3x** is not a close call [arXiv:2502.19645].
 - **Specify compute modules on memory bandwidth**, and treat the TOPS number as marketing until you have measured Hz on your own model [arXiv:2602.18397].
-- **Stage the migration.** Off-board through the first three milestones, on-board at the fourth, once the model has shrunk and the delay tolerance is proven.
+- **Stage the migration.** Start off-board while the model is still shrinking; move on-board once few-step distillation and quantization have landed and the delay tolerance is proven.
 
-The thesis of this program, stated exactly: **edge-native means the system is designed so that compute siting is a business decision, not a capability ceiling.** Latency-absorbing training, few-step action heads, bandwidth-first compute specifications, and a migration path that moves compute on-board as the model shrinks and the silicon widens. It rests on one result and falls with it — that a properly trained system absorbs **200** ms of delay without measurable loss [arXiv:2506.07339].
+The thesis, stated exactly: **edge-native means the system is designed so that compute siting is a business decision, not a capability ceiling.** Latency-absorbing training, few-step action heads, bandwidth-first compute specifications, and a migration path that moves compute on-board as the model shrinks and the silicon widens. It rests on one result and falls with it — that a properly trained system absorbs **200** ms of delay without measurable loss [arXiv:2506.07339].
+# Part 9 — Five problems that are yours
 
----
-
-# Part 9 — The plan
-
-## The vertical, and why this one
-
-The program starts with **mixed-SKU order picking** and generalizes from there. Three reasons, in order of importance.
-
-It has real customer value from the first working policy, which means the data engine is funded by something other than optimism [arXiv:2511.14759]. It has naturally high object and scene diversity, which is precisely what the one replicated scaling law rewards — and the recipe of **32** environment-object pairs at **50** demonstrations each maps onto a picking cell almost directly [arXiv:2410.18647]. And it is contact-rich at exactly the points where it fails, which is what makes the force and tactile argument in Part 10 a business case rather than a research aspiration [arXiv:2505.22159].
-
-Generality is not a separate research bet bolted on at the end. It is what the data engine produces once metadata conditioning lets dirty data keep paying [arXiv:2604.15483 §IX-E].
-
-## The milestone ladder
-
-![The build order](figures/f09-milestone-ladder.png)
-
-| | milestone | target | gate | compute |
-|---|---|---|---|---|
-| **M0** | Measure | an eval harness that detects a 10-point difference, plus a published photon-to-torque budget | separate 50% from 60% at 80% power using fewer trials than a fixed-sample design; every millisecond from exposure to commanded torque accounted for | off-board |
-| **M1** | Collect | diversity-first dataset with the metadata schema in place from day one | a policy fine-tuned on it generalizes to held-out object×environment pairs at the harness's significance bar | off-board |
-| **M2** | First policy | a deployable picking policy, asynchronous runtime | beats the site's existing heuristic picker on the site's own metric, at significance | off-board |
-| **M3** | Learn from experience | an autonomous improvement loop, not a one-shot training run | throughput doubled and failure rate halved against M2 | off-board |
-| **M4** | Move the compute | same policy, same success, on an embedded module | reaction time no worse than M2's off-board figure once delay is absorbed, at 130 W or less, with 1 point or less of success loss | **on-board** |
-| **M5** | Generalize | second embodiment and second site, no new pretraining run | zero-shot progress on the unseen embodiment within one harness confidence interval of the trained embodiment | **on-board** |
-
-Every gate is falsifiable, and M4's and M5's are stated relative to the M0 harness rather than as absolute numbers assumed in advance — because assuming them in advance is how programs end up unable to tell whether they succeeded [arXiv:2507.05331].
-
-## Why M4 is the investor slide
-
-Through M3 the system runs off-board. That is defensible for a pilot and fatal for a business, because it prices every robot at a datacentre GPU drawing **700** W [spec: NVIDIA H100 SXM].
-
-M4 replaces that with a **\$3,499** module drawing **40** to **130** W [spec: NVIDIA Jetson AGX Thor]. The technical work is Part 8's: model-aware quantization holding **97.6%** [arXiv:2602.20309], few-step distillation, and delay absorption already proven to **200** ms [arXiv:2506.07339].
-
-That is the difference between a demo and a business, and it is the milestone this crew most directly de-risks — because whether it lands depends on thermal envelope, mounting, power delivery, and sensor synchronization at least as much as on the model.
-
-## The resource model
-
-We give this parametrically rather than as a single number, for a reason that matters under diligence: every total below is derived from a **cited unit cost** and a **named parameter you can vary**. An invented lump sum survives a first meeting and nothing after it.
-
-**Disclosed unit anchors.**
-
-- Teleoperation labour: a posted operator wage band of **\$25.25** to **\$48.00** per hour [blog: Tesla job posting via Fortune]; separately, roughly **\$3** per hour reported for collection centres in China [blog: Rest of World]. Both are *marketing*-class sources and are labelled as such.
-- Collection rigs: **\$371** per handheld station [arXiv:2402.10329]; under **\$300** for a low-cost leader-arm rig [arXiv:2309.13037]; under **\$20k** for a conventional bimanual station [arXiv:2304.13705]; **\$32k** with a mobile base [arXiv:2401.02117]; and **\$0.6k** against roughly **\$60k** for an exoskeleton alternative [arXiv:2503.03081].
-- Edge compute: **\$3,499** at **273** GB/s and **40** to **130** W [spec: NVIDIA Jetson AGX Thor]; about **\$1,999** at **204.8** GB/s and **15** to **60** W for the prior generation [spec: NVIDIA Jetson AGX Orin].
-- Training compute: over **8** GB VRAM to infer, **22.5** GB for low-rank fine-tuning, **70** GB for a full fine-tune [repo: openpi README]. Pretraining a vision-language model is explicitly out of scope.
-- Headcount *shape*, sanity-checked against the only disclosed breakdown available: **22** robot-hardware, **24** data-collection-and-operations, and **10** robot-infrastructure contributors [arXiv:2604.15483 App. A].
-
-**Two figures we deliberately refuse to use.** The per-hour teleoperation-data prices circulating in vendor material have no published methodology, and we exclude them rather than dress them up [arXiv:2506.18123]. And cost per demonstration is undisclosed by every lab in this field [arXiv:2506.18123] — which is why this program instruments it from M0 and treats it as an owned metric rather than an industry constant.
-
-The capital lever worth naming explicitly: the handheld-versus-conventional rig decision is roughly a **100x** difference in capital for a **3.2x** throughput gain, *inferred* from the two disclosed prices [computed: \$371 against \$32k]. It is the highest-leverage procurement choice in M1, and its cost is the loss of the force channel [arXiv:2402.10329].
-
-**A worked instantiation, so the model is not abstract.** Take M1 at the validated recipe and vary nothing else.
-
-| line | derivation | figure |
-|---|---|---|
-| demonstrations required | 32 pairs × 50 demos [arXiv:2410.18647] | 1,600 |
-| collection hours, handheld | 1,600 ÷ 111 demos/h [arXiv:2402.10329] | ≈ 14 h |
-| collection hours, conventional teleoperation | 1,600 ÷ 35 demos/h [arXiv:2402.10329] | ≈ 46 h |
-| collection labour, handheld | 14 h × \$50/h [computed: 10,000 h at \$50 per hour] | ≈ \$700 |
-| rig capital, 4 handheld stations | 4 × \$371 [arXiv:2402.10329] | ≈ \$1,484 |
-
-The number that should stop the room is the last two rows. The *collection* cost of the diversity recipe that reached **85%** to **92.5%** in unseen environments is in the low thousands of dollars [arXiv:2410.18647]. Four people, one afternoon [arXiv:2410.18647].
-
-That is not where a robot foundation model program's money goes. The money goes into the fixtures that let you evaluate it, the fleet that keeps running while you do, and the engineering that gets it onto a **130** W module [spec: NVIDIA Jetson AGX Thor]. Which is the argument of this entire talk, arriving as a spreadsheet row.
-
-## What we will not do
-
-- **Pretrain a vision-language model.** Fine-tune an open checkpoint [repo: openpi README].
-- **Build a simulator before the harness.** Simulation's demonstrated value is in unseen-object generalization and demonstration amplification [arXiv:2406.02523], neither of which you can detect without M0.
-- **Run PPO on a 5-billion-parameter model.** The published comparison says it loses to conditioning on a text token [arXiv:2511.14759].
-- **Buy volume before diversity.** Demonstrations saturate around **800** per configuration; environments and objects do not [arXiv:2410.18647].
-
-## Risk register
-
-- **Cross-embodiment transfer may not materialize.** A **900k**-trajectory, **20**-embodiment study states plainly that its results do not yet show significant positive transfer across embodiments [arXiv:2408.11812]. M5 is the milestone most exposed, which is why it is last.
-- **Edge migration may stall** if model scale outruns memory bandwidth. The mitigation is that M4's work is algorithmic — **26x** from restructuring against **3x** from silicon [arXiv:2502.19645] — so it does not depend on a vendor roadmap.
-- **The pilot's task distribution may be too narrow to seed generality.** Mitigated by measuring against held-out object×environment pairs from M1 rather than at M5.
-- **Reinforcement learning may reward-hack.** It has been observed doing exactly this, substituting a push for a demonstrated grasp [arXiv:2509.09674]. Mitigated by rubric-based scoring rather than binary success [arXiv:2603.13616].
-- **Evaluation may fail to detect regressions** at achievable trial counts. This is the risk M0 exists to retire, and the reason it is first [arXiv:2507.05331].
-
----
-
-# Part 10 — What I need from you
-
-Five problems. Each is a genuine hole in the published record, each is bounded by mechanism, sensing, or fleet operations rather than by modelling, and each is something this room can close and I cannot.
+Five problems. Each is a genuine hole in the published record, each is bounded by mechanism, sensing, or fleet operations rather than by modelling, and each is something a hardware team can close and a modelling team cannot.
 
 **One: nobody has published a photon-to-torque budget.** Every disclosed latency in this entire talk is model-only; the reference implementation instruments inference and deserialization and nothing else [repo: openpi websocket_policy_server.py]. Build a hardware-triggered loop — an LED and a photodiode — that measures exposure to commanded torque on one platform, publish it, and you own a number the whole field is missing.
 
@@ -554,7 +471,7 @@ The blocker is not sensitivity, it is **cross-instance consistency** — a polic
 
 ## Where this leaves us
 
-The argument of this talk has been that generality in robots is real, that it comes from diversity rather than volume, and that the three things standing between it and a product are a measurement instrument, a data engine, and a power budget [arXiv:2410.18647].
+The argument of this post has been that generality in robots is real, that it comes from diversity rather than volume, and that the three things standing between it and a product are a measurement instrument, a data engine, and a power budget [arXiv:2410.18647].
 
 None of those three is a modelling problem.
 
