@@ -284,19 +284,136 @@ transformer 能赢，是因为序列建模足够通用，*而且*这个架构计
 
 ![施工顺序](figures/f09-milestone-ladder.png)
 
-六个里程碑。每个都有一个用数字表述、可以被证伪的通过条件，并且各自关掉第 4 部分网格里的一格。排序原则只有一条：先造量具，再造被量的东西。
+前面全部是诊断。这一部分是解答，也是最该被挑刺的一部分，因为只有它做出了承诺。
 
-**M0 —— 造量具。** 用序贯检验，加上相关性验证到 **0.924** 的 real-to-sim 代理，再加上最多能省 **70%** 试验的自适应分配，把「检出 10 分差距」的成本压到 **387** 次试验以下 [computed: two-proportion test, alpha 0.05, 80% power]。顺便把你自己平台的光子到力矩预算发出来，因为别人都没发 [[repo: openpi websocket_policy_server.py]](https://github.com/Physical-Intelligence/openpi/blob/main/src/openpi/serving/websocket_policy_server.py)。*关掉大脑/评测。*
+前面每一节都埋了钩子。它们在这里被逐个收回：
 
-**M1 —— 造数据引擎。** 从 **32** 个「环境×物体」组合乘 **50** 条演示起步，这是唯一背后有复现定律的配方 [[arXiv:2410.18647]](https://arxiv.org/abs/2410.18647)，跑在单价 **\$371** 的手持工位上 [[arXiv:2402.10329]](https://arxiv.org/abs/2402.10329)——四个工位是 **\$1,484** 的资本开支 [computed: 4 stations at \$371]。从第一天就把人类视频叠进来，每小时折合 **1,400** 条演示当量 [[arXiv:2410.24221]](https://arxiv.org/abs/2410.24221)。也从第一天就录力信号和元数据，因为事后补一路通道等于把语料重采一遍 [[arXiv:2505.22159]](https://arxiv.org/abs/2505.22159)。*关掉身体/采集，以及大脑/训练的一半。*
+| 前面留下的问题 | 在哪里解答 |
+|---|---|
+| 第四条轴——持续进化——只有一个公开闭环 | M3 |
+| 端侧结论，以及今天的模型装不进去 | M4 |
+| 力和触觉身体测得到，模型一个都没接 | M1，从第一天就录 |
+| 卡点一：没有统一的动作词表 | M2，action token 接口 |
+| 卡点二：没有无监督语料 | M1，数据引擎 |
+| 卡点三：多花的算力没买到关键指标 | M2，action head 的选择 |
+| 卡点四：瓶颈在端侧适配，不在训练规模 | M3 与 M4 |
+| 卡点五：推理意味着一台真机器 | M0 的延迟预算，M4 的运行时 |
+| 难点网格的全部六格 | M0 到 M5，一格一个 |
 
-**M2 —— 训策略。** 视觉语言 checkpoint 加 flow-matching action expert，总参数约 **5B**——**4B** backbone 加 **860M** expert [[arXiv:2604.15483 §IV]](https://arxiv.org/abs/2604.15483)——chunk 长度 H = **50**，去噪 **5** 步 [[arXiv:2604.15483 §VII]](https://arxiv.org/abs/2604.15483)。全量微调要按 **70 GB** 显存下限做预算 [[repo: openpi README]](https://github.com/Physical-Intelligence/openpi/blob/main/README.md)。通过条件：在 M0 那把量具上，以显著性打赢现有方案。*关掉大脑/训练。*
+六个里程碑。每个都有一个用数字表述的通过条件，因此都可能失败。排序原则只有一条：先造量具，再造被量的东西 [[arXiv:2506.18123]](https://arxiv.org/abs/2506.18123)。
 
-**M3 —— 从经验里学。** 在自主数据和人工介入数据上训一个 value model，每轮迭代约 **300** 条轨迹 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。通过条件：相对 M2，吞吐至少 **2x**，失败率至少减半 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。这是通往第四条能力轴唯一被公开验证过的路径，也是最可能延期的一个里程碑。*关掉大脑/部署里训练相关的那半。*
+## 先把「怎么借鉴」说清楚
 
-**M4 —— 把算力搬上机器。** 蒸馏加量化，压到 **130 W** 的功耗上限之内 [[spec: NVIDIA Jetson AGX Thor]](https://www.nvidia.com/en-us/autonomous-machines/embedded-systems/)，成功率损失不超过 **1** 个百分点 [computed: this plan]，用的是机器人专用量化的 **97.6%** [[arXiv:2602.20309]](https://arxiv.org/abs/2602.20309)、单步 flow 的 **83 毫秒** [[arXiv:2604.05656]](https://arxiv.org/abs/2604.05656)，以及值 **1.5 到 3.3x** 的编译优化 [[repo: Isaac-GR00T hardware_recommendation.md]](https://github.com/NVIDIA/Isaac-GR00T/blob/main/getting_started/hardware_recommendation.md)。单台机器人的算力成本变成 **\$3,499** 对一块数据中心 GPU，功耗变成 **40 到 130 W** 对 **700 W** [computed: EDGE-19 against EDGE-25]。*关掉大脑/部署，并兑现第 1 部分的产品结论。*
+![三个阶段：借过来，然后改](figures/f16-training-stages.png)
 
-**M5 —— 跑一支舰队。** 把平均无故障时间和重标定周期发出来，这是没有实验室披露过的两个数 [[arXiv:2104.08212]](https://arxiv.org/abs/2104.08212)。通过条件：换第二种本体、换第二个场地，不重跑预训练 [[arXiv:2408.11812]](https://arxiv.org/abs/2408.11812)。*关掉身体/硬件与身体/运行时。*
+语言模型那台机器有三个阶段，形式上三个都能搬过来。真正变形的是第三个，原因就是卡点二：没有便宜的 verifier，奖励只能从机器人自己的经验里来 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。
+
+| 阶段 | 在语言里 | 在机器人里 | 哪里断了 |
+|---|---|---|---|
+| 预训练 | 网页语料上的 next-token | 从 VLM checkpoint 出发，一个通才覆盖所有机器人和任务 | 语料不存在，只能被制造出来 [[arXiv:2410.24164]](https://arxiv.org/abs/2410.24164) |
+| 后训练 | 在精选数据上做指令微调 | 用 subgoal 和 episode 元数据做条件；把输入从固定装机中augment 开 | 监督信号是一条演示，不是一个偏好 [[arXiv:2604.15483 §V-E]](https://arxiv.org/abs/2604.15483) |
+| RL | 对着 reward model 做偏好优化 | 在机器人自己的 rollout 上做 advantage 条件化 | 没有 verifier；奖励稀疏，rollout 烧的是机器人小时 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759) |
+
+## M0 —— 造量具
+
+你没法拿一把自己都不信的尺子去做后训练，而领域自己的审计说，五个对比里有四个不显著 [[arXiv:2606.04233]](https://arxiv.org/abs/2606.04233)。
+
+**要造什么。** 一套能在 **387** 次试验以内分辨出 10 分差距的评测装置 [computed: two-proportion test, alpha 0.05, 80% power]，做法是把三样已经存在的东西拼起来：序贯检验、相关性验证到 Pearson **0.924** 的 real-to-sim 代理 [[arXiv:2405.05941]](https://arxiv.org/abs/2405.05941)，以及最多能省 **70%** 试验次数的自适应分配 [[arXiv:2603.13616]](https://arxiv.org/abs/2603.13616)。如果有合作方，分布式成对比较约 **100** 次之后收敛 [[arXiv:2506.18123]](https://arxiv.org/abs/2506.18123)。
+
+**要发布什么。** 你自己平台的光子到力矩预算，因为没有任何实验室为任何平台发布过 [[repo: openpi websocket_policy_server.py]](https://github.com/Physical-Intelligence/openpi/blob/main/src/openpi/serving/websocket_policy_server.py)。M4 反正也要用到它；现在就测出来，是「工程目标」和「一厢情愿」之间的区别。
+
+**通过条件。** 这把尺子能把两个你已知有差别的策略分开，且试验次数落在上面那个数以内 [computed: two-proportion test, alpha 0.05, 80% power]。*关掉大脑/评测。*
+
+## M1 —— 造数据引擎
+
+### 一条 episode 里必须录进什么
+
+这是最多团队做错的地方，因为做错的代价在返工之前完全看不见。π 系列把每条 episode 当作一个**带条件的样本**来处理，而不是一条原始轨迹，条件就是 prompt 里的纯文本 [[arXiv:2604.15483 §V-E]](https://arxiv.org/abs/2604.15483)：
+
+```
+<multi-view observation><multi-view subgoals>
+Task: peel vegetables. Subtask: pick up the peeler.
+Speed: 8000. Quality: 5. Mistake: false. Control Mode: joint.
+<proprioception>
+```
+
+每个字段都不是摆设。**Speed** 是 episode 长度（时间步），按 **500** 步一档分箱 [[arXiv:2604.15483 §V-C]](https://arxiv.org/abs/2604.15483)。**Quality** 是人打的 **1 到 5** 的整数 [[arXiv:2604.15483 §V-C]](https://arxiv.org/abs/2604.15483)。**Mistake** 是逐段的粗粒度布尔标注 [[arXiv:2604.15483 §V-C]](https://arxiv.org/abs/2604.15483)。**Control Mode** 区分关节空间和末端执行器指令 [[arXiv:2604.15483 §V-D]](https://arxiv.org/abs/2604.15483)。
+
+这样做换来的是推理期的一个旋钮。因为模型是带着这些字段训出来的，你可以在运行时要一种从没单独采集过的行为：把 **quality 提到 5**、**mistake 设成 false**，策略就去模仿你数据里好的那一半 [[arXiv:2604.15483 §VII]](https://arxiv.org/abs/2604.15483)。平庸的演示从「污染」变成了「对照」。
+
+**力信号和元数据必须从第一天就录。** 事后补任何一路都等于把语料重采一遍；而在已经加过力通道的地方，它平均值 **23.2%** [[arXiv:2505.22159]](https://arxiv.org/abs/2505.22159)。
+
+### episode 从哪来
+
+从唯一背后有复现定律的配方起步：**32** 个「环境×物体」组合、每个 **50** 条演示，在没见过的环境里拿到 **85% 到 92.5%**，**4** 个人一下午采完 [[arXiv:2410.18647]](https://arxiv.org/abs/2410.18647)。四个单价 **\$371** 的手持工位是 **\$1,484** 的资本开支 [computed: 4 stations at \$371]。人类视频要立刻叠进来——1 小时约等于 **1,400** 条演示，而 1 个机器人小时只等于 **135** 条 [[arXiv:2410.24221]](https://arxiv.org/abs/2410.24221)。仿真放最后：真实加仿真拿到 **24.4%** 和 **9.3%**，纯真实只有 **13.6%** 和 **2.6%** [[arXiv:2406.02523]](https://arxiv.org/abs/2406.02523)。
+
+**通过条件。** 看多样性，别看数据量：真正要数的是「组合数」，而每个组合的演示数在总量约 **800** 条时饱和 [[arXiv:2410.18647]](https://arxiv.org/abs/2410.18647)。*关掉身体/采集，以及大脑/训练的一半。*
+
+## M2 —— 模型怎么参数化
+
+![action head 是怎么接上去的](figures/f17-model-stack.png)
+
+### 这一摞有多大
+
+总共约 **5B** 参数，而且切得很不均匀，这是故意的：一个 **4B** 的 Gemma-3 backbone，里面含一个 **400M** 的 SigLIP 级视觉编码器，外加一个 **860M** 的 flow-matching action expert [[arXiv:2604.15483 §IV]](https://arxiv.org/abs/2604.15483)。backbone 是继承来的语义住的地方——也就是第 1 部分那个 RT-2-X 消融证明了「机器人数据教不出来」的那部分。expert 是运动技能住的地方。
+
+### action head 怎么接上去
+
+正好 **50** 个 action token，它们彼此之间是双向的，同时 attend backbone 的激活 [[arXiv:2604.15483 §VI-B]](https://arxiv.org/abs/2604.15483)。注意力是 block-causal：观测和 subgoal token 在各自块内双向，后面跟着的文本是因果的 [[arXiv:2604.15483 §VI-B]](https://arxiv.org/abs/2604.15483)。flow 的时间步通过 adaptive RMSNorm 注入 [[arXiv:2604.15483 §VI-B]](https://arxiv.org/abs/2604.15483)。本体感知走一个线性投影，每个历史状态一个 token [[arXiv:2604.15483 §VI-B]](https://arxiv.org/abs/2604.15483)。
+
+最值得抄的是那个**双目标**。一个 FAST token 的交叉熵头训 backbone，flow matching 训 expert，两者之间用 stop-gradient 耦合 [[arXiv:2604.15483 §III]](https://arxiv.org/abs/2604.15483)。离散头去塑造 backbone 的表示，同时不会把连续头一起拽偏。FAST token 只在训练期存在，而且 FAST token 和 flow action 之间从不互相 attend [[arXiv:2604.15483 App. B]](https://arxiv.org/abs/2604.15483)。到了推理期，离散那一支直接消失。
+
+这也是对卡点三的回答。action head 正是团队最容易因为「时髦」而伸手去拿 diffusion 的地方；而实测的账是 **10.1 Hz** 配 **95.4%**，对面 **109.7 Hz** 配 **95.3%** [[arXiv:2502.19645]](https://arxiv.org/abs/2502.19645)。算力要花在 backbone 上，别花在去噪步数上。
+
+### 记忆，几乎白送
+
+历史是 **6** 帧观测，采样间隔 **1** 秒 [[arXiv:2603.03596]](https://arxiv.org/abs/2603.03596)。消费它们的那个编码器，相对单图 ViT **没有增加任何**可学习参数，向后传的 token 数也和无记忆 VLA 一样——记忆来自注意力模式，不来自容量 [[arXiv:2603.03596]](https://arxiv.org/abs/2603.03596)。后训练阶段它可以扩到 **18** 帧、**54** 秒 [[arXiv:2603.03596]](https://arxiv.org/abs/2603.03596)。
+
+**通过条件。** 全量微调按 **70 GB** 显存下限做预算 [[repo: openpi README]](https://github.com/Physical-Intelligence/openpi/blob/main/README.md)，并且在 M0 那把尺子上以显著性打赢现有方案。*关掉大脑/训练。*
+
+## M3 —— 预训练、后训练，然后 RL
+
+### 阶段一 —— 预训练
+
+从 VLM checkpoint 出发，一个通才覆盖混合里的所有机器人和任务。这个阶段要的从来就不是单一任务上的成绩，要的是那个共享表示——它才是让 M5 换第二种本体变得便宜的原因 [[arXiv:2408.11812]](https://arxiv.org/abs/2408.11812)。
+
+### 阶段二 —— 后训练
+
+真正干活的是这份增广时间表，而下面每个数字都是已披露的超参数，不是建议。整段历史以 **p = 0.3** 丢弃，后置相机视角同样 **p = 0.3** [[arXiv:2604.15483 §VI-B]](https://arxiv.org/abs/2604.15483)。episode 元数据整体 **15%** 的概率丢掉，每个分量再额外 **5%** [[arXiv:2604.15483 §V-E]](https://arxiv.org/abs/2604.15483)。**25%** 的 batch 携带 subgoal 图像，而在这些样本内部，subtask 指令有 **30%** 的概率被丢掉 [[arXiv:2604.15483 §V-E]](https://arxiv.org/abs/2604.15483)。真实 subgoal 的采样是 **p = 0.25** 取段末、**p = 0.75** 在往后 **4** 秒内均匀取 [[arXiv:2604.15483 §VI-C]](https://arxiv.org/abs/2604.15483)。
+
+其中两条值得解释。subgoal 的占比被压在四分之一，是因为一旦有了 subgoal，目标函数会朝逆动力学退化、训练快得多——不设上限的话，模型就学会去读 subgoal 而不是读场景 [[arXiv:2604.15483 §V-E]](https://arxiv.org/abs/2604.15483)。而那些 dropout 也不是通常意义上的正则化：它们是在阻止策略把自己绑死在一套固定的相机装机上，也就是第 4 部分量化过的那个从 **100%** 掉到 **0%** 的失效模式 [[arXiv:2409.03403]](https://arxiv.org/abs/2409.03403)。
+
+训练时要注入 **0 到 12** 个时间步的模拟推理延迟——在 50 Hz 下就是 **240 毫秒**的预算 [computed: 12 timesteps at 50 Hz]。放在训练期做而不是测试期做，推理时不额外收费 [[arXiv:2604.15483 App. D]](https://arxiv.org/abs/2604.15483)。
+
+### 阶段三 —— RL，也就是这套配方开始不合身的地方
+
+没有便宜的 verifier，所以真正work的方法是：从机器人自己的经验里学一个 value function，再把策略条件化在它上面 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。
+
+训一个分布式 value model——架构和策略相同，但 backbone 小到 **670M**，在 **201** 个离散化蒙特卡洛回报的分箱上做 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。奖励是稀疏的：成功时终止步给 0，失败时给一个大的负常数，其余每步 **−1** [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。然后把策略条件化在一个**以文本形式插入的二值化 advantage 指示符**上，位置放在语言输入之后，这样只有动作的对数似然会受影响 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。人工介入的片段被强制标成正指示符，前提假设是专家的纠正动作是好动作 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。
+
+有两条纪律决定它收不收敛。改进阈值取在 value function 自己对该任务预测值的第 **30** 百分位 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。以及——**每一轮迭代都从预训练 checkpoint 微调，绝不从上一轮迭代微调**，否则策略会漂 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。每轮按约 **300** 条轨迹做预算 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。
+
+**通过条件。** 相对 M2，吞吐至少 **2x**，失败率至少减半 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。可用来对标的参考平台：两条 **6** 自由度机械臂、平行夹爪、**3** 路相机，任务时长 **5 到 15** 分钟 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。
+
+这个里程碑就是第 1 部分那第四条能力轴，也是最可能延期的一个。它同时是通往「交付之后还会变好的机器人」唯一被公开验证过的路径 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。*关掉大脑/部署里训练相关的那半。*
+
+### 推理期你真正会动的旋钮
+
+去噪 **5** 步；50 步的 chunk 里执行 **15 或 25** 步 [[arXiv:2604.15483 §VII]](https://arxiv.org/abs/2604.15483)。元数据上的 classifier-free guidance 取 **1.3**、**1.7** 或 **2.2** [[arXiv:2604.15483 §VII]](https://arxiv.org/abs/2604.15483)。speed 提示词取该任务 episode 长度的第 **15** 百分位，quality 恒为 **5**，mistake 恒为 false [[arXiv:2604.15483 §VII]](https://arxiv.org/abs/2604.15483)。subgoal 每 **4** 秒刷新一次，或者语义意图变化时刷新，以先到者为准 [[arXiv:2604.15483 §VII]](https://arxiv.org/abs/2604.15483)。
+
+## M4 —— 把算力搬上机器
+
+这是第 1 部分许下的那个里程碑，也是把 demo 变成产品的那一步。
+
+蒸馏加量化，压进 **130 W** 的功耗上限 [[spec: NVIDIA Jetson AGX Thor]](https://www.nvidia.com/en-us/autonomous-machines/embedded-systems/)，成功率损失不超过 **1** 个百分点 [computed: this plan]。这一摞按「谁先回本」排序：先上机器人专用量化，因为 W4A8 能守住 **97.6%** 并把 **4.27 GB 压到 1.28 GB**，而通用语言模型量化只剩 **76.3%** [[arXiv:2602.20309]](https://arxiv.org/abs/2602.20309)。再做步数削减——单步 flow 把某个策略从 **274 毫秒压到 83 毫秒**，成功率还升了 [[arXiv:2604.05656]](https://arxiv.org/abs/2604.05656)。最后是编译，值 **1.5 到 3.3x** [[repo: Isaac-GR00T hardware_recommendation.md]](https://github.com/NVIDIA/Isaac-GR00T/blob/main/getting_started/hardware_recommendation.md)。别忘了那个悬崖：3.0 bit/权重时的 **94.8%**，到 2.0 时变成 **48.0%** [[arXiv:2605.24011]](https://arxiv.org/abs/2605.24011)。
+
+也留意前沿是怎么处理那些压不下去的部件的：world model 被放在 **4** 块 H100 上服务，所有大矩阵乘法量化到 **8** bit，配一个改过的注意力 kernel，异步跑，而策略照常继续执行 [[arXiv:2604.15483 App. D]](https://arxiv.org/abs/2604.15483)。对于不在控制回路里的部件，放到机外是一个合理答案。
+
+**通过条件。** 单台机器人的算力成本变成 **\$3,499** 对一块数据中心 GPU，功耗变成 **40 到 130 W** 对 **700 W** [computed: EDGE-19 against EDGE-25]。*关掉大脑/部署，并兑现第 1 部分的产品结论。*
+
+## M5 —— 跑一支舰队
+
+把平均无故障时间和重标定周期发出来，这是没有实验室披露过的两个数 [[arXiv:2104.08212]](https://arxiv.org/abs/2104.08212)。**通过条件。** 换第二种本体、换第二个场地，不重跑预训练 [[arXiv:2408.11812]](https://arxiv.org/abs/2408.11812)。*关掉身体/硬件与身体/运行时。*
 
 ## 对 scaling 该有什么预期
 

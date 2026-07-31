@@ -122,11 +122,35 @@ backbone 固定住，diffusion 多花的算力换来约 0.1 个百分点，代�
 
 ## 第 5 部分 —— 施工顺序
 
+![](slides/s15-hooks-answered.zh.png)
+
+在这之前全部是诊断。前面每一个钩子都由恰好一个里程碑收回，而每个里程碑都带一个用数字表述的通过条件，所以每个都可能失败 [[arXiv:2506.18123]](https://arxiv.org/abs/2506.18123)。
+
 ![](figures/f09-milestone-ladder.png)
 
 ![](slides/s12-build-order.zh.png)
 
-每个里程碑关掉网格里的一格，并且带一个用数字表述的通过条件。M4 是产品结论被兑现的地方：单台算力成本降到 \$3,499、功耗 40 到 130 W，对面是一块 700 W 的数据中心 GPU [computed: EDGE-19 against EDGE-25]。
+![](figures/f16-training-stages.png)
+
+语言模型那三个阶段，形式上都能搬过来。真正变形的是第三个：没有便宜的 verifier，奖励只能从机器人自己的经验里来 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。
+
+![](slides/s16-episode-schema.zh.png)
+
+把每条 episode 都当作**带条件的样本**来录：speed 按 500 步分箱、quality 是人打的 1 到 5 分、mistake 是逐段布尔、control mode [[arXiv:2604.15483 §V-C]](https://arxiv.org/abs/2604.15483)。到了运行时这些就是旋钮——把 quality 提到 5、mistake 设成 false，策略就去模仿你数据里好的那一半 [[arXiv:2604.15483 §VII]](https://arxiv.org/abs/2604.15483)。
+
+![](figures/f17-model-stack.png)
+
+总共约 5B 参数：4B backbone 装继承来的语义，860M flow-matching expert 装运动技能 [[arXiv:2604.15483 §IV]](https://arxiv.org/abs/2604.15483)。正好 50 个 action token，彼此双向；一个 FAST 交叉熵头通过 stop-gradient 塑造 backbone，到推理期直接消失 [[arXiv:2604.15483 App. B]](https://arxiv.org/abs/2604.15483)。
+
+![](slides/s17-training-schedule.zh.png)
+
+历史以 p = 0.3 丢弃，元数据 15% 与 5%，25% 的 batch 带 subgoal [[arXiv:2604.15483 §V-E]](https://arxiv.org/abs/2604.15483)。这些不是通常意义的正则化——它们在阻止策略绑死到固定相机装机 [[arXiv:2409.03403]](https://arxiv.org/abs/2409.03403)。
+
+![](slides/s18-recap-loop.zh.png)
+
+一个 670M 的分布式 value model，201 个分箱，稀疏奖励，以及一个以文本形式插在语言输入之后的二值 advantage 指示符 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。每轮都从预训练 checkpoint 微调，绝不从上一轮，否则策略会漂 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。
+
+M4 是产品结论被兑现的地方：单台算力成本降到 \$3,499、功耗 40 到 130 W，对面是一块 700 W 的数据中心 GPU [computed: EDGE-19 against EDGE-25]。
 
 ---
 

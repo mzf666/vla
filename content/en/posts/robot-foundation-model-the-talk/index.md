@@ -122,11 +122,35 @@ The model's own time is the measured third — 14 ms of encoders, 32 ms of prefi
 
 ## Part 5 — The build order
 
+![](slides/s15-hooks-answered.en.png)
+
+Everything before this was diagnosis. Each earlier hook is picked up by exactly one milestone, and each milestone carries a gate expressed as a number so it can fail [[arXiv:2506.18123]](https://arxiv.org/abs/2506.18123).
+
 ![](figures/f09-milestone-ladder.png)
 
 ![](slides/s12-build-order.en.png)
 
-Each milestone closes one cell of the grid and carries a gate expressed as a number. M4 is where the product thesis is paid for: per-robot compute drops to \$3,499 at 40 to 130 W, against a datacentre GPU at 700 W [computed: EDGE-19 against EDGE-25].
+![](figures/f16-training-stages.png)
+
+All three language-model stages transfer in form. The third one changes shape, because there is no cheap verifier and the reward has to come from the robot's own experience [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759).
+
+![](slides/s16-episode-schema.en.png)
+
+Record every episode as a *conditioned* example: speed binned at 500 steps, quality as a human 1 to 5, mistake as a per-segment boolean, control mode [[arXiv:2604.15483 §V-C]](https://arxiv.org/abs/2604.15483). At runtime those become knobs — prompt quality 5 and mistake false and the policy imitates the good half of your data [[arXiv:2604.15483 §VII]](https://arxiv.org/abs/2604.15483).
+
+![](figures/f17-model-stack.png)
+
+About 5B parameters: a 4B backbone carrying the inherited semantics, plus an 860M flow-matching expert carrying the motor skill [[arXiv:2604.15483 §IV]](https://arxiv.org/abs/2604.15483). Exactly 50 action tokens, bidirectional among themselves; a FAST cross-entropy head shapes the backbone through a stop-gradient and disappears at inference [[arXiv:2604.15483 App. B]](https://arxiv.org/abs/2604.15483).
+
+![](slides/s17-training-schedule.en.png)
+
+History dropped at p = 0.3, metadata at 15% and 5%, subgoals in 25% of the batch [[arXiv:2604.15483 §V-E]](https://arxiv.org/abs/2604.15483). These are not regularization — they are what stops the policy binding to a fixed camera rig [[arXiv:2409.03403]](https://arxiv.org/abs/2409.03403).
+
+![](slides/s18-recap-loop.en.png)
+
+A 670M distributional value model over 201 bins, a sparse reward, and a binarized advantage indicator inserted as text after the language input [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759). Each iteration finetunes from the pre-trained checkpoint, never the previous one — otherwise the policy drifts [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759).
+
+M4 is where the product thesis is paid for: per-robot compute drops to \$3,499 at 40 to 130 W, against a datacentre GPU at 700 W [computed: EDGE-19 against EDGE-25].
 
 ---
 

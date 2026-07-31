@@ -284,19 +284,136 @@ Safety is architectural rather than learned. No neural policy will carry a Perfo
 
 ![The build order](figures/f09-milestone-ladder.png)
 
-Six milestones. Each has a falsifiable gate expressed as a number, and each closes a named cell of the grid in Part 4. The ordering principle is that you build the instrument before the thing it measures.
+Everything so far has been diagnosis. This part is the answer, and it is the part to argue with, because it is the only one that commits to anything.
 
-**M0 — build the instrument.** Detect a 10-point difference in fewer than **387** trials, by combining sequential testing with a real-to-sim proxy validated at **0.924** correlation and adaptive allocation worth up to **70%** of the trials [computed: two-proportion test, alpha 0.05, 80% power]. Publish a photon-to-torque budget for your own platform, since nobody else has [[repo: openpi websocket_policy_server.py]](https://github.com/Physical-Intelligence/openpi/blob/main/src/openpi/serving/websocket_policy_server.py). *Closes brain/evaluation.*
+Each earlier section left a hook. Here is where each one gets picked up:
 
-**M1 — build the data engine.** Start at **32** environment-object pairs by **50** demonstrations, the recipe with a replicated law behind it [[arXiv:2410.18647]](https://arxiv.org/abs/2410.18647), on handheld stations at **\$371** each [[arXiv:2402.10329]](https://arxiv.org/abs/2402.10329) — four of them is **\$1,484** of capital [computed: 4 stations at \$371]. Layer human video in from the start, at **1,400** demonstration-equivalents per hour [[arXiv:2410.24221]](https://arxiv.org/abs/2410.24221). Record force and metadata from day one, because retrofitting a channel means recollecting the corpus [[arXiv:2505.22159]](https://arxiv.org/abs/2505.22159). *Closes body/collection and half of brain/training.*
+| what was left open | where it is answered |
+|---|---|
+| the fourth axis — continual evolution — has one published loop | M3 |
+| the on-device verdict, with today's models not fitting | M4 |
+| force and touch measured by the body, consumed by no model | M1, recorded from day one |
+| blocker 1: no uniform action vocabulary | M2, the action-token interface |
+| blocker 2: no unsupervised corpus | M1, the data engine |
+| blocker 3: the extra compute buys nothing | M2, the action-head choice |
+| blocker 4: on-device adaptation, not training scale | M3 and M4 |
+| blocker 5: inference means a real robot | M0's latency budget, M4's runtime |
+| all six cells of the difficulty grid | M0 through M5, one cell each |
 
-**M2 — train the policy.** A vision-language checkpoint plus a flow-matching action expert, about **5B** parameters total — a **4B** backbone and an **860M** expert [[arXiv:2604.15483 §IV]](https://arxiv.org/abs/2604.15483) — with chunk H = **50** and **5** denoising steps [[arXiv:2604.15483 §VII]](https://arxiv.org/abs/2604.15483). Budget the **70 GB** VRAM floor for a full fine-tune [[repo: openpi README]](https://github.com/Physical-Intelligence/openpi/blob/main/README.md). Gate: beats the incumbent at significance, on the M0 instrument. *Closes brain/training.*
+Six milestones. Each has a gate expressed as a number, so it can fail. The ordering principle is that you build the instrument before the thing it measures [[arXiv:2506.18123]](https://arxiv.org/abs/2506.18123).
 
-**M3 — learn from experience.** A value model over autonomous and intervention data, at about **300** trajectories per iteration [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759). Gate: throughput at least **2x** and failure rate at least halved against M2 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759). This is the only published route to the fourth capability axis, and it is the milestone most likely to slip. *Closes the training half of brain/deployment.*
+## Borrowing the recipe, stated once
 
-**M4 — move the compute.** Distil and quantize to a **130 W** ceiling [[spec: NVIDIA Jetson AGX Thor]](https://www.nvidia.com/en-us/autonomous-machines/embedded-systems/) at no more than **1** point of success loss [computed: this plan], using robotics-specific quantization at **97.6%** [[arXiv:2602.20309]](https://arxiv.org/abs/2602.20309), single-step flow at **83 ms** [[arXiv:2604.05656]](https://arxiv.org/abs/2604.05656), and compilation worth **1.5 to 3.3x** [[repo: Isaac-GR00T hardware_recommendation.md]](https://github.com/NVIDIA/Isaac-GR00T/blob/main/getting_started/hardware_recommendation.md). Per-robot compute becomes **\$3,499** against a datacentre GPU, at **40 to 130 W** against **700 W** [computed: EDGE-19 against EDGE-25]. *Closes brain/deployment, and delivers the Part 1 product thesis.*
+![Three stages, borrowed and then modified](figures/f16-training-stages.png)
 
-**M5 — run a fleet.** Publish the mean time between failures and the recalibration cadence, the two numbers no lab discloses [[arXiv:2104.08212]](https://arxiv.org/abs/2104.08212). Gate: a second embodiment and a second site with no new pretraining run [[arXiv:2408.11812]](https://arxiv.org/abs/2408.11812). *Closes body/hardware and body/runtime.*
+The language-model machine has three stages, and all three transfer in form. What changes is the third one, and the reason is blocker two: there is no cheap verifier, so the reward has to come from the robot's own experience [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759).
+
+| stage | in language | in robotics | what breaks |
+|---|---|---|---|
+| pretrain | next token on a web corpus | one generalist across every robot and task, from a VLM checkpoint | the corpus does not exist and must be manufactured [[arXiv:2410.24164]](https://arxiv.org/abs/2410.24164) |
+| post-train | instruction tuning on curated data | condition on subgoals and episode metadata; augment away from the rig | supervision is a demonstration, not a preference [[arXiv:2604.15483 §V-E]](https://arxiv.org/abs/2604.15483) |
+| RL | preference optimization against a reward model | advantage-conditioned policy over the robot's own rollouts | no verifier; the reward is sparse and the rollouts cost robot-hours [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759) |
+
+## M0 — build the instrument
+
+You cannot post-train against a measurement you do not trust, and the field's own audit says four comparisons in five are not significant [[arXiv:2606.04233]](https://arxiv.org/abs/2606.04233).
+
+**What to build.** A harness that resolves a 10-point difference in fewer than **387** trials [computed: two-proportion test, alpha 0.05, 80% power], by combining three things that already exist: sequential testing, a real-to-sim proxy validated at Pearson **0.924** [[arXiv:2405.05941]](https://arxiv.org/abs/2405.05941), and adaptive trial allocation worth up to **70%** of the trials [[arXiv:2603.13616]](https://arxiv.org/abs/2603.13616). Distributed pairwise comparison converges after about **100** comparisons if you have partners [[arXiv:2506.18123]](https://arxiv.org/abs/2506.18123).
+
+**What to publish.** A photon-to-torque budget for your own platform, because no lab has published one for any platform [[repo: openpi websocket_policy_server.py]](https://github.com/Physical-Intelligence/openpi/blob/main/src/openpi/serving/websocket_policy_server.py). You need it in M4 anyway, and measuring it now is the difference between an engineering target and a hope.
+
+**Gate.** The harness separates two policies you already know to differ, at the trial count above [computed: two-proportion test, alpha 0.05, 80% power]. *Closes brain/evaluation.*
+
+## M1 — build the data engine
+
+### What one recorded episode has to contain
+
+This is the part most teams get wrong, because the cost of getting it wrong is invisible until the retrofit. The π-series treats every episode as a *conditioned* example rather than a raw trajectory, and the conditioning is plain text in the prompt [[arXiv:2604.15483 §V-E]](https://arxiv.org/abs/2604.15483):
+
+```
+<multi-view observation><multi-view subgoals>
+Task: peel vegetables. Subtask: pick up the peeler.
+Speed: 8000. Quality: 5. Mistake: false. Control Mode: joint.
+<proprioception>
+```
+
+Each field earns its place. **Speed** is episode length in timesteps, binned at **500**-step intervals [[arXiv:2604.15483 §V-C]](https://arxiv.org/abs/2604.15483). **Quality** is a human integer from **1 to 5** [[arXiv:2604.15483 §V-C]](https://arxiv.org/abs/2604.15483). **Mistake** is a coarse per-segment boolean [[arXiv:2604.15483 §V-C]](https://arxiv.org/abs/2604.15483). **Control mode** distinguishes joint-space from end-effector commands [[arXiv:2604.15483 §V-D]](https://arxiv.org/abs/2604.15483).
+
+What this buys is a knob at inference. Because the model was trained conditioned on these fields, you can ask for behaviour you never had to collect separately: prompt **quality 5** and **mistake false** at runtime and the policy imitates the good half of your data [[arXiv:2604.15483 §VII]](https://arxiv.org/abs/2604.15483). Mediocre demonstrations stop being contamination and start being contrast.
+
+**Record the wrench channel and the metadata from day one.** Retrofitting either means recollecting the corpus, and force is worth **23.2%** on average where it has been added [[arXiv:2505.22159]](https://arxiv.org/abs/2505.22159).
+
+### Where the episodes come from
+
+Start at the recipe with a replicated law behind it: **32** environment-object pairs at **50** demonstrations each, which reached **85% to 92.5%** in unseen environments and was collected by **4** people in an afternoon [[arXiv:2410.18647]](https://arxiv.org/abs/2410.18647). Four handheld stations at **\$371** each is **\$1,484** of capital [computed: 4 stations at \$371]. Layer human video in immediately — an hour of it is worth about **1,400** demonstrations against a robot-hour's **135** [[arXiv:2410.24221]](https://arxiv.org/abs/2410.24221). Add simulation last, where real plus sim reached **24.4%** and **9.3%** against real-only's **13.6%** and **2.6%** [[arXiv:2406.02523]](https://arxiv.org/abs/2406.02523).
+
+**Gate.** Diversity, not volume: the count that matters is pairs, and demonstrations per pair saturate around **800** total [[arXiv:2410.18647]](https://arxiv.org/abs/2410.18647). *Closes body/collection and half of brain/training.*
+
+## M2 — the model, parameterized
+
+![How the action head attaches](figures/f17-model-stack.png)
+
+### The stack
+
+About **5B** parameters, split unevenly and deliberately: a **4B** Gemma-3 backbone with a **400M** SigLIP-class vision encoder inside it, plus an **860M** flow-matching action expert [[arXiv:2604.15483 §IV]](https://arxiv.org/abs/2604.15483). The backbone is where the inherited semantics live — the thing the RT-2-X ablation in Part 1 proved you cannot train from robot data. The expert is where the motor skill lives.
+
+### How the action head attaches
+
+Exactly **50** action tokens, bidirectional among themselves, attending backbone activations [[arXiv:2604.15483 §VI-B]](https://arxiv.org/abs/2604.15483). Attention is block-causal: observation and subgoal tokens are bidirectional within themselves, and text that follows is causal [[arXiv:2604.15483 §VI-B]](https://arxiv.org/abs/2604.15483). The flow timestep enters through adaptive RMSNorm [[arXiv:2604.15483 §VI-B]](https://arxiv.org/abs/2604.15483). Proprioception is a linear projection, one token per history state [[arXiv:2604.15483 §VI-B]](https://arxiv.org/abs/2604.15483).
+
+The part worth copying is the **dual objective**. A FAST-token cross-entropy head trains on the backbone while flow matching trains the expert, and the two are coupled by a stop-gradient [[arXiv:2604.15483 §III]](https://arxiv.org/abs/2604.15483). The discrete head shapes the backbone's representation without dragging the continuous head along with it. FAST tokens exist only at training time, and FAST tokens and flow actions never attend to each other [[arXiv:2604.15483 App. B]](https://arxiv.org/abs/2604.15483). At inference the discrete branch is simply gone.
+
+This is also the answer to blocker three. The action head is where teams reach for diffusion because it is fashionable; the measured trade is **10.1 Hz** at **95.4%** against **109.7 Hz** at **95.3%** [[arXiv:2502.19645]](https://arxiv.org/abs/2502.19645). Spend the compute on the backbone, not on denoising steps.
+
+### Memory, for free
+
+History is six observations at a **1** second stride [[arXiv:2603.03596]](https://arxiv.org/abs/2603.03596). The encoder that consumes them adds **zero** new learnable parameters over a single-image ViT and passes on the same token count as a memoryless VLA — the memory comes from the attention pattern, not from capacity [[arXiv:2603.03596]](https://arxiv.org/abs/2603.03596). Post-training it expands to **18** frames and **54** seconds [[arXiv:2603.03596]](https://arxiv.org/abs/2603.03596).
+
+**Gate.** Budget the **70 GB** VRAM floor for a full fine-tune [[repo: openpi README]](https://github.com/Physical-Intelligence/openpi/blob/main/README.md), and beat the incumbent at significance on the M0 harness. *Closes brain/training.*
+
+## M3 — pretrain, post-train, then RL
+
+### Stage one — pretraining
+
+One generalist over every robot and task in the mixture, initialized from the VLM checkpoint. The point of this stage is not performance on any task; it is the shared representation that makes M5's second embodiment cheap [[arXiv:2408.11812]](https://arxiv.org/abs/2408.11812).
+
+### Stage two — post-training
+
+This is where the augmentation schedule does the work, and every number here is a disclosed hyperparameter rather than a suggestion. Drop the entire history with **p = 0.3** and the rear view with **p = 0.3** [[arXiv:2604.15483 §VI-B]](https://arxiv.org/abs/2604.15483). Drop episode metadata entirely **15%** of the time and each component a further **5%** [[arXiv:2604.15483 §V-E]](https://arxiv.org/abs/2604.15483). Carry subgoal images in **25%** of the batch, and within those examples drop the subtask instruction **30%** of the time [[arXiv:2604.15483 §V-E]](https://arxiv.org/abs/2604.15483). Sample real subgoals as **p = 0.25** end-of-segment and **p = 0.75** uniform up to **4** seconds ahead [[arXiv:2604.15483 §VI-C]](https://arxiv.org/abs/2604.15483).
+
+Two of those deserve explanation. The subgoal share is capped at a quarter because with subgoals present the objective degenerates toward inverse dynamics and trains much faster — left uncapped, the model learns to read the subgoal instead of the scene [[arXiv:2604.15483 §V-E]](https://arxiv.org/abs/2604.15483). And the dropout rates are not regularization in the usual sense: they are what stops the policy from binding to a fixed camera rig, which is the failure Part 4 quantified at **100%** to **0%** [[arXiv:2409.03403]](https://arxiv.org/abs/2409.03403).
+
+Train with simulated inference delay of **0 to 12** timesteps — a **240 ms** budget at 50 Hz [computed: 12 timesteps at 50 Hz]. Doing it in training rather than at test time costs nothing at inference [[arXiv:2604.15483 App. D]](https://arxiv.org/abs/2604.15483).
+
+### Stage three — RL, which is where the recipe stops fitting
+
+There is no cheap verifier, so the method that works learns a value function from the robot's own experience and conditions the policy on it [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759).
+
+Train a distributional value model — same architecture as the policy but a smaller **670M** backbone, over **201** bins of discretized Monte Carlo return [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759). The reward is sparse: zero at the terminal step on success, a large negative constant on failure, and **−1** otherwise [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759). Then condition the policy on a *binarized advantage indicator inserted as text*, positioned after the language input so only action log-likelihoods are affected [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759). Human interventions are forced to the positive indicator, on the assumption that an expert correction is a good action [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759).
+
+Two disciplines make it converge. The improvement threshold sits at the **30th** percentile of the value function's own predictions for that task [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759). And **each iteration finetunes from the pre-trained checkpoint, never from the previous iteration** — otherwise the policy drifts [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759). Budget about **300** trajectories per iteration [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759).
+
+**Gate.** Throughput at least **2x** and failure rate at least halved against M2 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759). Reference platform for calibration: two **6**-DoF arms, parallel-jaw grippers, **3** cameras, tasks of **5 to 15** minutes [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759).
+
+This milestone is the fourth capability axis from Part 1, and it is the one most likely to slip. It is also the only published route to a robot that improves after you ship it [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759). *Closes the training half of brain/deployment.*
+
+### The knobs you actually turn at inference
+
+**5** denoising steps; execute **15 or 25** of the 50-step chunk [[arXiv:2604.15483 §VII]](https://arxiv.org/abs/2604.15483). Classifier-free guidance on the metadata at **1.3**, **1.7** or **2.2** [[arXiv:2604.15483 §VII]](https://arxiv.org/abs/2604.15483). Prompt speed at the **15th** percentile of task episode length, quality always **5**, mistake always false [[arXiv:2604.15483 §VII]](https://arxiv.org/abs/2604.15483). Refresh the subgoal every **4** seconds or on a semantic-intent change, whichever comes first [[arXiv:2604.15483 §VII]](https://arxiv.org/abs/2604.15483).
+
+## M4 — move the compute
+
+This is the milestone Part 1 promised, and the one that turns a demo into a product.
+
+Distil and quantize to the **130 W** ceiling [[spec: NVIDIA Jetson AGX Thor]](https://www.nvidia.com/en-us/autonomous-machines/embedded-systems/) at no more than **1** point of success loss [computed: this plan]. The stack, in the order it pays: robotics-specific quantization first, because W4A8 holds **97.6%** while cutting **4.27 GB to 1.28 GB** where generic language-model quantization lands at **76.3%** [[arXiv:2602.20309]](https://arxiv.org/abs/2602.20309). Then step reduction — single-step flow takes one policy from **274 ms to 83 ms** while improving success [[arXiv:2604.05656]](https://arxiv.org/abs/2604.05656). Then compilation, worth **1.5 to 3.3x** [[repo: Isaac-GR00T hardware_recommendation.md]](https://github.com/NVIDIA/Isaac-GR00T/blob/main/getting_started/hardware_recommendation.md). Respect the cliff: **94.8%** at 3.0 bits per weight becomes **48.0%** at 2.0 [[arXiv:2605.24011]](https://arxiv.org/abs/2605.24011).
+
+Note what the frontier does with the parts that cannot be shrunk: the world model is served on **4** H100s with **8**-bit matrix multiplications and a modified attention kernel, asynchronously, while the policy keeps executing [[arXiv:2604.15483 App. D]](https://arxiv.org/abs/2604.15483). Off-board is a legitimate answer for a component that is not in the control loop.
+
+**Gate.** Per-robot compute becomes **\$3,499** against a datacentre GPU, at **40 to 130 W** against **700 W** [computed: EDGE-19 against EDGE-25]. *Closes brain/deployment, and delivers the Part 1 product thesis.*
+
+## M5 — run a fleet
+
+Publish the mean time between failures and the recalibration cadence — the two numbers no lab discloses [[arXiv:2104.08212]](https://arxiv.org/abs/2104.08212). **Gate.** A second embodiment and a second site with no new pretraining run [[arXiv:2408.11812]](https://arxiv.org/abs/2408.11812). *Closes body/hardware and body/runtime.*
 
 ## What to expect from scaling
 
