@@ -46,9 +46,13 @@ Generality is real. Its fragility is mechanical.
 
 ## Four axes, not one
 
+**The shape of the thing, in one line:** up to 4 camera images, the current joint configuration, and one sentence of English go in; a block of 50 future joint targets comes out, and your servo loop executes them [[arXiv:2604.15483 §IV]](https://arxiv.org/abs/2604.15483).
+
+**The one property to carry into the rest of this part:** the sentence is the only thing you change to get a new behaviour [[arXiv:2604.15483 §V]](https://arxiv.org/abs/2604.15483). The exact signature, and why the output is a block rather than a step, are in Part 2.
+
 The term is used loosely enough to be worth pinning down. A robot foundation model is a system that satisfies four requirements at once, and the interesting thing is how unevenly the field satisfies them [[arXiv:2108.07258]](https://arxiv.org/abs/2108.07258).
 
-- **Task generalization** — you prompt it into a new task. The adaptation channel is literally a sentence: a new job means writing a new instruction, not collecting a new dataset and launching a new training run [[arXiv:2604.15483 §V]](https://arxiv.org/abs/2604.15483). Evaluated across 14 scenarios with 3 to 6 open-ended instructions each, in unseen kitchens and bedrooms [[arXiv:2604.15483 §IX-B]](https://arxiv.org/abs/2604.15483).
+- **Task generalization** — you prompt it into a new task, through the channel just described. Evaluated across 14 scenarios with 3 to 6 open-ended instructions each, in unseen kitchens and bedrooms [[arXiv:2604.15483 §IX-B]](https://arxiv.org/abs/2604.15483).
 - **Embodiment generalization** — you prompt it onto a new body. The same weights drive robots with different kinematics. Across 22 embodiments and 60 datasets, a cross-embodiment model beat per-dataset specialist methods by **50%** on average [[arXiv:2310.08864]](https://arxiv.org/abs/2310.08864).
 - **Human-grade interaction** — it takes open-ended instruction and exposes what it intends to do. The π-series emits a human-readable subtask string refreshed every 4 seconds [[arXiv:2604.15483 §VI]](https://arxiv.org/abs/2604.15483), and explicit intermediate reasoning lifts task progress from **0.55 to 0.67** [[arXiv:2510.03342]](https://arxiv.org/abs/2510.03342).
 - **Continual evolution** — it improves from its own experience, adapts as the mechanism wears, and absorbs newly assigned work. This is the weakest axis by a wide margin: one published loop demonstrates self-improvement from autonomous rollouts [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759), and adaptation to mechanical wear is published by nobody [[arXiv:2104.08212]](https://arxiv.org/abs/2104.08212).
