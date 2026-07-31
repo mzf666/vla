@@ -1,405 +1,145 @@
 ---
-title: "如何构建机器人基础模型 —— 演讲版，一屏一页"
-date: 2026-07-29
+title: "如何构建机器人基础模型 —— 可能的路线与挑战（TLDR）"
+date: 2026-07-31
 draft: false
-summary: "浓缩版：同一套论证，一屏一页，十五分钟读完，而不是五十分钟。"
+tags: ["物理AI", "具身智能", "VLA", "机器人", "基础模型", "边缘计算"]
+summary: "演讲版：同一套论证，一屏一页，十五分钟读完，而不是五十分钟。"
 ---
 
-## 如何构建机器人基础模型
-
-### 以及为什么最难的部分在硬件这边
-
-一个开场，讲给懂机器人、不懂语言模型的人。
+> 这是[长文版](../how-to-build-a-robot-foundation-model/)的浓缩编排——一屏一页，每页下面配一两句解说。**[打开全屏演示 →](/vla/slides/rfm/)**（方向键，或直接滚动）。
 
 ---
 
-## 两个数字
+![](slides/s00-title.zh.png)
 
-**85.6% 进度 / 80% 成功率** —— 一件衬衫，叠在一台**零**叠衣数据的双臂 UR5e 上 [[arXiv:2604.15483 §IX]](https://arxiv.org/abs/2604.15483)。
+![](slides/s01-question.zh.png)
 
-**90.9% / 80.6%** —— 十名资深遥操作员，各约 375 小时经验，第一次上手这台臂 [[arXiv:2604.15483 §IX]](https://arxiv.org/abs/2604.15483)。
+这条链只有一个方向，每一步都依赖前一步。结论摆在第一屏，方便后面被逐条反驳 [[arXiv:2604.15483]](https://arxiv.org/abs/2604.15483)。
 
----
+![](slides/s02-two-numbers.zh.png)
 
-## 第二个数字
-
-那个模型跑在一块 **H100** 上 [[arXiv:2604.15483 App. D]](https://arxiv.org/abs/2604.15483)。
-
-相机挪 **10 厘米**、转 **20°**：**100% → 0%** [[arXiv:2409.03403]](https://arxiv.org/abs/2409.03403)。
-
-> 通用性是真的。它的脆弱是机械层面的。
+一台从没见过叠衣服数据的双臂 UR5e，把衬衫叠到了 85.6% 进度、80% 成功率；十位各约 375 小时经验的专家遥操作员，第一次上手拿到 90.9% 和 80.6% [[arXiv:2604.15483 §IX]](https://arxiv.org/abs/2604.15483)。而同一类策略，相机挪 10 厘米、转 20 度，就从 100% 掉到 0% [[arXiv:2409.03403]](https://arxiv.org/abs/2409.03403)。
 
 ---
 
-## 它到底是什么
+## 第 1 部分 —— 它是什么
+
+![](figures/f11-capability-axes.png)
+
+![](slides/s03-four-axes.zh.png)
+
+任务泛化在 14 个场景、每场景 3 到 6 条开放式指令、环境全是没见过的房间上被证明 [[arXiv:2604.15483 §IX-B]](https://arxiv.org/abs/2604.15483)。本体泛化在 22 种本体、60 个数据集上被证明，但有天花板 [[arXiv:2310.08864]](https://arxiv.org/abs/2310.08864)。持续进化只有一个公开闭环 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)，关于机械磨损则一条都没有 [[arXiv:2104.08212]](https://arxiv.org/abs/2104.08212)。
 
 ![](figures/f01-io-contract.png)
 
-**输入：** ≤4 路图像、关节构型、一句话。**输出：** H=50 个关节目标；执行 15 或 25 个；重规划 [[arXiv:2604.15483 §IV]](https://arxiv.org/abs/2604.15483)。
+输入是最多 4 路 448×448 图像、6 帧历史、一个关节构型和一句话；输出是 50 个未来关节目标，其中 15 或 25 步会被执行，然后模型被重新调用 [[arXiv:2604.15483 §IV]](https://arxiv.org/abs/2604.15483)。模型是 setpoint 生成器——它给伺服环喂数，不接管伺服环 [[arXiv:2604.15483 §VII]](https://arxiv.org/abs/2604.15483)。
 
-它是一个**设定点发生器**。它不替换你的伺服环 [[arXiv:2604.15483 §VII]](https://arxiv.org/abs/2604.15483)。
+![](slides/s04-ablation.zh.png)
 
----
+把网络预训练从同一套架构里抽掉，emergent skills 掉到 0%、泛化掉到 1%；加回去分别是 48.7% 和 47% [[arXiv:2310.08864 Table II]](https://arxiv.org/abs/2310.08864)。语义是继承来的，这也是这一切唯一能站在互联网已付账单上起步的理由 [[arXiv:2307.15818]](https://arxiv.org/abs/2307.15818)。
 
-## 基础模型，还是一个大号策略？
+![](figures/f10-product-form.png)
 
-- 新任务 = 一句**新指令**，不是一份新数据集 [[arXiv:2604.15483 §V]](https://arxiv.org/abs/2604.15483)。
-- 同一份权重，不同的运动学 [[arXiv:2510.03342]](https://arxiv.org/abs/2510.03342)。
-- 机器人数据里从来没有过的能力 [[arXiv:2310.08864 Table II]](https://arxiv.org/abs/2310.08864)。
-- 加入机器人 B 的数据，机器人 A 变强 [[arXiv:2310.08864]](https://arxiv.org/abs/2310.08864)。
+![](slides/s05-product-form.zh.png)
 
----
-
-## 那个决定性的消融实验
-
-同一个架构，把网络预训练拿掉：
-
-| | 涌现技能 | 泛化 |
-|---|---|---|
-| 有网络预训练 | 48.7% | 47% |
-| 没有 | **0%** | **1%** |
-
-语义是继承来的，不是从机器人数据里学的 [[arXiv:2310.08864 Table II]](https://arxiv.org/abs/2310.08864)。
+H100 是 700 W [[spec: NVIDIA H100 SXM]](https://www.nvidia.com/en-us/data-center/h100/)，边缘模组是 40 到 130 W [[spec: NVIDIA Jetson AGX Thor]](https://www.nvidia.com/en-us/autonomous-machines/embedded-systems/)，而一台人形机器人整机平均约 210 W [[spec: 1X NEO]](https://www.1x.tech/neo)。模组要吃掉整机功率预算的 19% 到 62% [computed: 40 to 130 W against 210 W]；而今天的模型还装不进去——H100 上 35.9 Hz，Thor 上 10.7 Hz [[repo: Isaac-GR00T hardware_recommendation.md]](https://github.com/NVIDIA/Isaac-GR00T/blob/main/getting_started/hardware_recommendation.md)。
 
 ---
 
-## 哪些泛化是真被证明过的
+## 第 2 部分 —— 它由什么组成
 
-- 物体、场景、指令、约 10 分钟的组合 —— **有** [[arXiv:2504.16054]](https://arxiv.org/abs/2504.16054)。
-- 跨本体 —— 有，但有天花板：75.8% 对 27.3% [[arXiv:2310.08864]](https://arxiv.org/abs/2310.08864)。
-- **摩擦、载荷、惯量、柔顺性 —— 没有任何实验室发过扫描实验** [[arXiv:2604.15483]](https://arxiv.org/abs/2604.15483)。
+![](figures/f12-brain-body.png)
 
----
+![](slides/s06-brain-body.zh.png)
 
-## 在我推销任何东西之前
-
-独立研究发现了词法—运动学捷径和语义特征塌缩 [[arXiv:2604.18000]](https://arxiv.org/abs/2604.18000)。
-
-头部实验室自己承认，这可能是**「重组」**而不是泛化 [[arXiv:2604.15483]](https://arxiv.org/abs/2604.15483)。
-
----
-
-# 第 2 部分 —— 那台跑通了的机器
-
-十分钟讲清语言建模为什么变成了一个工业计划。
-
----
-
-## 预训练
-
-把文本切成 token。预测下一个。量误差。重复 [[arXiv:2001.08361]](https://arxiv.org/abs/2001.08361)。
-
-翻译是英文后面跟法文。摘要是长段后面跟短段。代码是代码后面跟代码。
-
-**一个预测器；任务自己掉出来** [[arXiv:2001.08361]](https://arxiv.org/abs/2001.08361)。
-
----
-
-## 后训练
-
-1. 在精选演示上做监督微调。
-2. 对着人类偏好比较做对齐。
-3. 在正确性**可廉价自动判定**的地方做强化学习 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。
-
-记住第 3 条。机器人没有它 [[arXiv:2410.21845]](https://arxiv.org/abs/2410.21845)。
-
----
-
-## 回报是可预测的
-
-`L(D) = (5.4e13 / D)^0.095` —— 数据 ×10，损失乘 **0.80** [[arXiv:2001.08361]](https://arxiv.org/abs/2001.08361)。
-
-`L(N) = (8.8e13 / N)^0.076` —— 参数 ×10，损失乘 **0.84** [[arXiv:2001.08361]](https://arxiv.org/abs/2001.08361)。
-
-在超过 **7** 个数量级上拟合过 [[arXiv:2001.08361]](https://arxiv.org/abs/2001.08361)。
-
-宽度、深度、长宽比只差**几个百分点** —— 架构**不是**那个杠杆 [[arXiv:2001.08361]](https://arxiv.org/abs/2001.08361)。
-
----
-
-## 预算怎么花
-
-每个参数约 **20** 个训练 token [[arXiv:2203.15556]](https://arxiv.org/abs/2203.15556)。
-
-同等算力下，**70B** 训 **1.4T** token 打败 **280B** 训 **300B** token [[arXiv:2203.15556]](https://arxiv.org/abs/2203.15556)。
-
----
-
-## 一拍诚实
-
-一次复现发现，同一篇论文自己的常数蕴含每参数约 **70** 个 token [[arXiv:2404.10102]](https://arxiv.org/abs/2404.10102)。
-
-一个稳健的**趋势**，不是一个精确常数。别引到三位有效数字。
-
----
-
-## 前提一 —— 廉价的能力信号
-
-一个覆盖几乎所有任务的目标，它的损失是能力的**廉价、稠密、低方差**代理。
-
-在留出数据上量，花几分钱，想量多勤就多勤 [[arXiv:2001.08361]](https://arxiv.org/abs/2001.08361)。
-
----
-
-## 前提二 —— 数据本来就在
-
-**15T** token。**44 TB**。**96** 个爬取快照。整理约 **1,536** GPU 小时 [[arXiv:2406.17557]](https://arxiv.org/abs/2406.17557)。
-
-一万美元量级的算力，换来别人早就写好的文本 [computed: 1,536 GPU-hours at commodity rates]。
-
----
-
-## 前提三 —— 一个机器喜欢的架构
-
-**540B** 的模型持续跑到理论峰值的 **46.2%** [[arXiv:2204.02311]](https://arxiv.org/abs/2204.02311)。
-
-几乎全是稠密矩阵乘法；序列里每个位置一次性并行处理 [[arXiv:2009.06489]](https://arxiv.org/abs/2009.06489)。
-
-你会挑自己工艺擅长的机构。他们也是。
-
----
-
-# 第 3 部分 —— 成绩单
-
-![](figures/f02-scorecard.png)
-
----
-
-## 还有第四条约束
+大脑以 50 Hz 写 setpoint [[arXiv:2604.15483 §VII]](https://arxiv.org/abs/2604.15483)，而它下面那条机械臂接受 1 kHz 的指令 [[spec: Franka Research 3]](https://franka.de/products/franka-research-3)。共享同一份语料的平台之间，重复定位精度从 0.1 毫米跨到 1 毫米 [computed: 1 mm against 0.1 mm]。力和触觉身体测得到，前沿模型一个都没接 [[arXiv:2505.22159]](https://arxiv.org/abs/2505.22159)。
 
 ![](figures/f03-frequency-stack.png)
 
----
-
-# 第 4 部分 —— 评测
-
-## 没人算的那段算术
-
-在 80% 功效下分开 **50%** 和 **60%**：每个策略约 **387** 次试验 [computed: two-proportion test, alpha 0.05, 80% power]。
-
-已发表的做法：每任务 **10** 次 [[arXiv:2504.16054]](https://arxiv.org/abs/2504.16054)。领域典型：**10–60** [[arXiv:2506.18123]](https://arxiv.org/abs/2506.18123)。
-
-差一到两个数量级。
+没人会把 5B 的 transformer 塞进伺服环，所以每个认真的系统都切成两半、跑在不同频率上 [[arXiv:2503.14734]](https://arxiv.org/abs/2503.14734)。各家真正的分歧是这道缝开多宽——一个隐向量 [[blog: Figure Helix]](https://www.figure.ai/news/helix)、一串中间特征 [[arXiv:2503.14734]](https://arxiv.org/abs/2503.14734)，或者一句费带宽但换来可调试性的人可读子任务描述 [[arXiv:2604.15483 §VI]](https://arxiv.org/abs/2604.15483)。
 
 ---
 
-## 基准测的是别的东西
+## 第 3 部分 —— 那台跑通了的机器
 
-一个 **90M**、**完全没有语言编码器**的探针，在四个套件上拿到 **92.4–100%** [[arXiv:2606.04233]](https://arxiv.org/abs/2606.04233)。
+![](slides/s07-scaling-economics.zh.png)
 
-该基准上被报告的结论里只有约 **19.8%** 统计显著 [[arXiv:2606.04233]](https://arxiv.org/abs/2606.04233)。
+loss 以幂律下降，指数是 0.095、0.076 和 0.050，拟合跨越 7 个数量级 [[arXiv:2001.08361]](https://arxiv.org/abs/2001.08361)。这种可预测性就是一件预算工具：同等算力下，70B 配 1.4T 打赢 280B 配 300B，最优约每参数 20 个 token [[arXiv:2203.15556]](https://arxiv.org/abs/2203.15556)。
 
----
+![](slides/s08-pillar-data.zh.png)
 
-## 而它们对你的变量很敏感
+一条开源流水线把 96 个 Common Crawl 快照蒸成 15T token、44 TB，只花 1,536 GPU 小时 [[arXiv:2406.17557]](https://arxiv.org/abs/2406.17557)，折合约 \$10k 算力 [computed: 1,536 GPU-hours at commodity rates]。两个最大的第一人称视频语料加起来 4,956 小时 [computed: 3,670 h plus 1,286 h]；而机器人数据是造出来的——约 10,000 小时遥操作，约合 \$500k 人力 [computed: 10,000 h at \$50 per hour]。
 
-改机器人初始状态：**−87.6** 个点。换相机视角：**−78.4** 个点 [[arXiv:2510.13626]](https://arxiv.org/abs/2510.13626)。
+![](figures/f15-roofline.png)
 
-把指令整句删掉：几乎不掉 [[arXiv:2510.13626]](https://arxiv.org/abs/2510.13626)。
+![](slides/s09-pillar-compute.zh.png)
 
-同一个模型、同一个任务，换一个人复位场景：**0% 到 100%** [[arXiv:2510.17950]](https://arxiv.org/abs/2510.17950)。
-
----
-
-## 最小可行路径：先把仪器建起来
-
-自动复位工装 · 按参考照片复位 · 分段给分的评分表 · 序贯检验（省 **70%** 试验）[[arXiv:2603.13616]](https://arxiv.org/abs/2603.13616)。
-
-真正的束缚是**复位**，而那是个机构设计问题 [[arXiv:2510.17950]](https://arxiv.org/abs/2510.17950)。
-
----
-
-# 第 5 部分 —— 数据引擎
-
-![](figures/f06-diversity-scaling.png)
-
----
-
-## 买多样性，不买量
-
-演示在每构型约 **800** 条之后**饱和** [[arXiv:2410.18647]](https://arxiv.org/abs/2410.18647)。
-
-验证过的配方：**32** 个「环境 × 物体」配对 × **50** 条演示 → 未见环境 **85–92.5%** [[arXiv:2410.18647]](https://arxiv.org/abs/2410.18647)。
-
-**4** 个人，一个下午采完 [[arXiv:2410.18647]](https://arxiv.org/abs/2410.18647)。
-
----
-
-## 数据来源阶梯
-
-![](figures/f08-sources-ladder.png)
-
----
-
-## 过滤，还是留下来打标签？
-
-**过滤：** 优化混合权重比均匀加权好 **38%** [[arXiv:2408.14037]](https://arxiv.org/abs/2408.14037)。
-
-**留下：** 有元数据条件化，更多脏数据仍然有用；没有，模型反而**变差** [[arXiv:2604.15483 §IX-E]](https://arxiv.org/abs/2604.15483)。
-
-没人知道通用规则。它依赖你的机队。
-
----
-
-## 最小可行路径：数据引擎
-
-- **32 × 50** 那个配方，不是量 [[arXiv:2410.18647]](https://arxiv.org/abs/2410.18647)。
-- **\$371** 的手持工位换吞吐 [[arXiv:2402.10329]](https://arxiv.org/abs/2402.10329)。
-- 元数据**从第一天**就写进 schema [[arXiv:2604.15483 §V]](https://arxiv.org/abs/2604.15483)。
-- 力/力矩与触觉通道**从第一天**留好，哪怕暂时不用。清单上最便宜的一项 [[arXiv:2505.22159]](https://arxiv.org/abs/2505.22159)。
-
----
-
-# 第 6 部分 —— 模型与动作表示
-
-![](figures/f07-action-representation.png)
-
----
-
-## 扩散不明显划算
-
-| 动作头 | 吞吐 | 延迟 | 成功率 |
-|---|---|---|---|
-| 自回归离散 | 4.2 Hz | 240 ms | — |
-| + chunking | 108.8 Hz | 74 ms | 90.2% |
-| + 连续 L1 | 109.7 Hz | 73 ms | 95.3% |
-| + 扩散，50 步 | 10.1 Hz | 792 ms | 95.4% |
-
-**0.1** 个点，换约 **11×** 吞吐 [[arXiv:2502.19645]](https://arxiv.org/abs/2502.19645)。
-
----
-
-## chunking 不是一个优化项
-
-k = 1 → **1%** 成功率。k = 100 → **44%** [[arXiv:2304.13705]](https://arxiv.org/abs/2304.13705)。
-
-误差累积：一点偏差把你带出分布，然后循环发散。
-
-代价：已承诺的 chunk 没法对滑掉的物体做反应。
-
----
-
-## 最小可行路径：模型
-
-- 做 chunking。动作头用流匹配或 **L1**，**5** 步 [[arXiv:2502.19645]](https://arxiv.org/abs/2502.19645)。
-- 微调开源 checkpoint；**不要**自己预训练 VLM。全量微调 **70 GB** [[repo: openpi README]](https://github.com/Physical-Intelligence/openpi/blob/main/README.md)。
-- **保留你的 1 kHz 控制器。** 它是 20–50 Hz 的设定点发生器 [[arXiv:2604.15483 §VII]](https://arxiv.org/abs/2604.15483)。
-
----
-
-# 第 7 部分 —— 训练与后训练
-
-## 强化学习在这里为什么难
-
-- **没有廉价验证器。** 「衬衫叠好了吗」没有断言可写 [[arXiv:2601.00675]](https://arxiv.org/abs/2601.00675)。
-- **复位要花一个人** [[arXiv:2410.21845]](https://arxiv.org/abs/2410.21845)。
-- **探索会弄坏硬件** [[arXiv:2410.21845]](https://arxiv.org/abs/2410.21845)。
-- **硬件是非平稳的** —— 磨损和漂移在两次迭代之间改变系统 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。
-
----
-
-## 真跑通了什么
-
-用价值模型估进度。把优势二值化。**作为一个文本 token 插进 prompt。** 在成功*和*失败上一起训。推理时条件化在「好」上 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。
-
-吞吐 **>2×**。失败率**减半**。**13 小时**无人值守的意式咖啡服务 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。
-
----
-
-## 应该改变你先验的那个结果
-
-**PPO 和优势加权回归都输了**，输给条件化在一个文本 token 上 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。
-
-精巧的 on-policy 算法不是答案。
-
----
-
-## 最小可行路径：训练
-
-1. **二元成功分类器** —— 约 1000 帧、约 **5 分钟**遥操作 [[arXiv:2410.21845]](https://arxiv.org/abs/2410.21845)。
-2. 只在**一个**任务上做人在环强化学习：**12/12** 全部 **100%**，每个 **1–2.5 小时** [[arXiv:2410.21845]](https://arxiv.org/abs/2410.21845)。
-3. 然后把优势条件化铺到整个机队 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。
-
-永远不要在 50 亿参数的模型上跑 PPO [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。
-
----
-
-# 第 8 部分 —— 运行时与边缘
-
-![](figures/f04-latency-budget.png)
-
----
-
-## 延迟是正确性问题
-
-chunk 接缝会在不同策略之间跳，产生**分布外**的状态 [[arXiv:2506.07339]](https://arxiv.org/abs/2506.07339)。
-
-修法：执行当前 chunk 时生成下一个，冻住已承诺的动作，把剩下的补画出来 [[arXiv:2506.07339]](https://arxiv.org/abs/2506.07339)。
-
-**100 ms 和 200 ms 下没有退化。** 超过 **300 ms** 仍然有效 [[arXiv:2506.07339]](https://arxiv.org/abs/2506.07339)。
-
----
-
-## 边缘的现实
+由规格书推出的 ridge point：H100 约 1,181 FLOP/byte，Thor 约 3,791，Orin 约 1,343 [computed: 3,958 TFLOPS over 3.35 TB/s]。Thor 的往右挪了约 3.2x [computed: 3,791 over 1,181]，实测后果是同一个 action expert 在那里要 26.20 毫秒，在消费级 GPU 上只要 7.25 毫秒 [[arXiv:2602.18397]](https://arxiv.org/abs/2602.18397)。
 
 ![](figures/f05-hz-per-bandwidth.png)
 
----
+同一个模型、同一套运行时、三块加速器：吞吐跟着 GB/s 那一行走，不跟着 TOPS 那一行走 [[repo: Isaac-GR00T hardware_recommendation.md]](https://github.com/NVIDIA/Isaac-GR00T/blob/main/getting_started/hardware_recommendation.md)。
 
-## 看 GB/s 那行，不要看 TOPS 那行
+![](figures/f02-scorecard.png)
 
-**2070** FP4 TFLOPS [[spec: NVIDIA Jetson AGX Thor]](https://www.nvidia.com/en-us/autonomous-machines/embedded-systems/) → **10.7 Hz** [[repo: Isaac-GR00T hardware_recommendation.md]](https://github.com/NVIDIA/Isaac-GR00T/blob/main/getting_started/hardware_recommendation.md)。
+机器人满足计算这根支柱。数据支柱和基础设施支柱，它没有以那种曾经产生威力的形态满足；此外还多背一条文本从未面对的约束 [[arXiv:2604.15483 §VII]](https://arxiv.org/abs/2604.15483)。
 
-**273 GB/s** 对 H100 的 **3.35 TB/s** —— **12×** 的差距 [computed: 3.35 TB/s against 273 GB/s]。
+![](figures/f14-five-blockers.png)
 
-批为 1 时，每次推理都要把每个权重流一遍。吞吐跟着**带宽**走 [[arXiv:2602.18397]](https://arxiv.org/abs/2602.18397)。
-
----
-
-## 十倍级的收益来自算法
-
-更大的硅：**1.5–3.3×** [[repo: Isaac-GR00T hardware_recommendation.md]](https://github.com/NVIDIA/Isaac-GR00T/blob/main/getting_started/hardware_recommendation.md)。
-
-重构动作头：**4.2 → 109.7 Hz**，成功率还从 76.5% *涨到* 97.1% [[arXiv:2502.19645]](https://arxiv.org/abs/2502.19645)。
-
-模型感知量化保住 **97.6%**；通用 LLM 量化器把它打到 **76.3%** [[arXiv:2602.20309]](https://arxiv.org/abs/2602.20309)。
+动作空间要补零到 18 维，频率从 3 Hz 跨到 50 Hz [[arXiv:2410.24164]](https://arxiv.org/abs/2410.24164)。50 步 diffusion 换来 10.1 Hz 和 95.4%，连续回归换来 109.7 Hz 和 95.3% [[arXiv:2502.19645]](https://arxiv.org/abs/2502.19645)。实时 chunking 扛得住 100–200 毫秒，过了 300 毫秒就崩 [[arXiv:2506.07339]](https://arxiv.org/abs/2506.07339)。五个里，只有一个是建模问题。
 
 ---
 
-## 边缘原生，精确地讲
+## 第 4 部分 —— 各要付多少代价
 
-> 算力放在哪里是一个商业决策，不是一个能力上限。
+![](figures/f13-difficulty-matrix.png)
 
-吸收延迟的训练 · 少步动作头 · 带宽优先的规格 · 分阶段搬上板。
+![](slides/s10-eval-arithmetic.zh.png)
 
-它建立在一个结果上，也随它一起倒：**200 ms** 被吸收而没有可测损失 [[arXiv:2506.07339]](https://arxiv.org/abs/2506.07339)。
+把 50% 和 60% 的策略分开需要 387 次试验 [computed: two-proportion test, alpha 0.05, 80% power]，而领域内实际跑 10 到 60 次 [[arXiv:2506.18123]](https://arxiv.org/abs/2506.18123)。LIBERO 上只有 19.8% 的论断统计显著 [[arXiv:2606.04233]](https://arxiv.org/abs/2606.04233)；位置一扰动，拿 98% 和 92% 的模型直接坍到 0.0% [[arXiv:2510.03827]](https://arxiv.org/abs/2510.03827)。
 
-# 第 9 部分 —— 五个属于你的问题
+![](figures/f06-diversity-scaling.png)
 
-## 五个属于你的问题
+唯一被复现过的定律跑的是多样性：32 个「环境×物体」组合、每个 50 条演示，在没见过的环境里拿到 85% 到 92.5%，4 个人一下午采完 [[arXiv:2410.18647]](https://arxiv.org/abs/2410.18647)。
 
-1. **光子到力矩的预算不存在。** 每一个公开延迟都只算了模型 [[repo: openpi websocket_policy_server.py]](https://github.com/Physical-Intelligence/openpi/blob/main/src/openpi/serving/websocket_policy_server.py)。
-2. **跨个体差异从来没被测过** —— 被列为混杂因素，然后量化为零 [[arXiv:2506.18123]](https://arxiv.org/abs/2506.18123)。
-3. **电机电流被测出来又被扔掉** [[repo: openpi aloha_policy.py]](https://github.com/Physical-Intelligence/openpi/blob/main/src/openpi/policies/aloha_policy.py)。
-4. **没有平均无故障时间，没有单条可用 episode 的成本** [[arXiv:1806.10293]](https://arxiv.org/abs/1806.10293)。
-5. **双足机器人的急停制造了跌落危险**，而标准并不存在 [std: ISO 25785-1]。
+![](figures/f08-sources-ladder.png)
+
+手持工位单价 \$371，每小时产 111 条演示，对面遥操作是 35 条 [[arXiv:2402.10329]](https://arxiv.org/abs/2402.10329)。1 小时人类视频约等于 1,400 条演示，而 1 小时机器人时间只等于 135 条 [[arXiv:2410.24221]](https://arxiv.org/abs/2410.24221)。
+
+![](figures/f07-action-representation.png)
+
+backbone 固定住，diffusion 多花的算力换来约 0.1 个百分点，代价是约 11x 的吞吐 [computed: 109.7 Hz against 10.1 Hz]。
+
+![](slides/s11-quantization.zh.png)
+
+某个方法在 3.0 bit/权重时守住 94.8%，掉到 2.0 时变成 48.0% [[arXiv:2605.24011]](https://arxiv.org/abs/2605.24011)。机器人专用 W4A8 拿到 97.6%，把 4.27 GB 压到 1.28 GB；通用量化只剩 76.3% [[arXiv:2602.20309]](https://arxiv.org/abs/2602.20309)。
+
+![](figures/f04-latency-budget.png)
+
+模型自己那段是被测过的三分之一——编码器 14 毫秒、prefix 32 毫秒、flow 步 27 毫秒 [[arXiv:2410.24164]](https://arxiv.org/abs/2410.24164)。它前后的所有环节，整个领域都没测 [[repo: openpi websocket_policy_server.py]](https://github.com/Physical-Intelligence/openpi/blob/main/src/openpi/serving/websocket_policy_server.py)。
 
 ---
 
-## 为什么第 3 个是我会挑的那个
+## 第 5 部分 —— 施工顺序
 
-力通道：平均 **+23.2%**；插头插入 **~10% → ~80%**，用 **244** 条轨迹 [[arXiv:2505.22159]](https://arxiv.org/abs/2505.22159)。
+![](figures/f09-milestone-ladder.png)
 
-触觉：USB 插入 **5% → 35%** [[arXiv:2507.09160]](https://arxiv.org/abs/2507.09160)。
+![](slides/s12-build-order.zh.png)
 
-卡点是**跨个体一致性**，而它可解：换传感器 **13%** 对 **43%**，σ **0.12** 对 **0.54** [[arXiv:2409.08276]](https://arxiv.org/abs/2409.08276)。
+每个里程碑关掉网格里的一格，并且带一个用数字表述的通过条件。M4 是产品结论被兑现的地方：单台算力成本降到 \$3,499、功耗 40 到 130 W，对面是一块 700 W 的数据中心 GPU [computed: EDGE-19 against EDGE-25]。
 
 ---
 
-## 最后一个数字
+## 第 6 部分 —— 三个值得押的开放问题
 
-做出目前最强公开通才结果的那个团队，按职能分：
+![](slides/s13-open-bets.zh.png)
 
-**22** 人机器人硬件 · **24** 人数据采集与运营 · **10** 人机器人基础设施 [[arXiv:2604.15483 App. A]](https://arxiv.org/abs/2604.15483)。
+*推测性内容，已如此标注。* 力通道平均涨 23.2%，而前沿模型一个都没接 [[arXiv:2505.22159]](https://arxiv.org/abs/2505.22159)。机体与策略联合优化在这个规模上没有公开工作，所以只作为问题提出 [[arXiv:2604.15483]](https://arxiv.org/abs/2604.15483)。唯一的自我改进闭环报告吞吐 2x、失败率减半 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。
 
-> 被列名的团队里超过一半，在做硬件的活，不是建模的活。
+![](slides/s14-closing.zh.png)
+
+五个卡点里有四个属于测量、机构和数据引擎——这意味着，能把它们关掉的人里，多数人目前并不认为自己是机器学习研究者 [[arXiv:2506.18123]](https://arxiv.org/abs/2506.18123)。
+
+---
+
+长文版承载完整论证、gap 清单和参考文献 [[arXiv:2604.15483]](https://arxiv.org/abs/2604.15483)。
