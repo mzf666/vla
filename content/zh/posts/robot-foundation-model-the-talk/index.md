@@ -30,10 +30,6 @@ summary: "演讲版：同一套论证，一屏一页，十五分钟读完，而�
 
 任务泛化在 14 个场景、每场景 3 到 6 条开放式指令、环境全是没见过的房间上被证明 [[arXiv:2604.15483 §IX-B]](https://arxiv.org/abs/2604.15483)。本体泛化在 22 种本体、60 个数据集上被证明，但有天花板 [[arXiv:2310.08864]](https://arxiv.org/abs/2310.08864)。持续进化只有一个公开闭环 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)，关于机械磨损则一条都没有 [[arXiv:2104.08212]](https://arxiv.org/abs/2104.08212)。
 
-![](figures/f01-io-contract.png)
-
-输入是最多 4 路 448×448 图像、6 帧历史、一个关节构型和一句话；输出是 50 个未来关节目标，其中 15 或 25 步会被执行，然后模型被重新调用 [[arXiv:2604.15483 §IV]](https://arxiv.org/abs/2604.15483)。模型是 setpoint 生成器——它给伺服环喂数，不接管伺服环 [[arXiv:2604.15483 §VII]](https://arxiv.org/abs/2604.15483)。
-
 ![](slides/s04-ablation.zh.png)
 
 把网络预训练从同一套架构里抽掉，emergent skills 掉到 0%、泛化掉到 1%；加回去分别是 48.7% 和 47% [[arXiv:2310.08864 Table II]](https://arxiv.org/abs/2310.08864)。语义是继承来的，这也是这一切唯一能站在互联网已付账单上起步的理由 [[arXiv:2307.15818]](https://arxiv.org/abs/2307.15818)。
@@ -49,6 +45,10 @@ H100 是 700 W [[spec: NVIDIA H100 SXM]](https://www.nvidia.com/en-us/data-cente
 ## 第 2 部分 —— 它由什么组成
 
 ![](figures/f12-brain-body.png)
+
+![](figures/f01-io-contract.png)
+
+输入是最多 4 路 448×448 图像、6 帧历史、一个关节构型和一句话；输出是 50 个未来关节目标，其中 15 或 25 步会被执行，然后模型被重新调用 [[arXiv:2604.15483 §IV]](https://arxiv.org/abs/2604.15483)。这是大脑的边界，不是整台机器的边界——模型是 setpoint 生成器，它给伺服环喂数，不接管伺服环 [[arXiv:2604.15483 §VII]](https://arxiv.org/abs/2604.15483)。
 
 ![](slides/s06-brain-body.zh.png)
 

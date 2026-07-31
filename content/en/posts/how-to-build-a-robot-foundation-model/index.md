@@ -48,26 +48,12 @@ Generality is real. Its fragility is mechanical.
 
 The term is used loosely enough to be worth pinning down. A robot foundation model is a system that satisfies four requirements at once, and the interesting thing is how unevenly the field satisfies them [[arXiv:2108.07258]](https://arxiv.org/abs/2108.07258).
 
-- **Task generalization** — you prompt it into a new task. A new job means writing a new sentence, not collecting a new dataset and launching a new training run. Evaluated across 14 scenarios with 3 to 6 open-ended instructions each, in unseen kitchens and bedrooms [[arXiv:2604.15483 §IX-B]](https://arxiv.org/abs/2604.15483).
+- **Task generalization** — you prompt it into a new task. The adaptation channel is literally a sentence: a new job means writing a new instruction, not collecting a new dataset and launching a new training run [[arXiv:2604.15483 §V]](https://arxiv.org/abs/2604.15483). Evaluated across 14 scenarios with 3 to 6 open-ended instructions each, in unseen kitchens and bedrooms [[arXiv:2604.15483 §IX-B]](https://arxiv.org/abs/2604.15483).
 - **Embodiment generalization** — you prompt it onto a new body. The same weights drive robots with different kinematics. Across 22 embodiments and 60 datasets, a cross-embodiment model beat per-dataset specialist methods by **50%** on average [[arXiv:2310.08864]](https://arxiv.org/abs/2310.08864).
 - **Human-grade interaction** — it takes open-ended instruction and exposes what it intends to do. The π-series emits a human-readable subtask string refreshed every 4 seconds [[arXiv:2604.15483 §VI]](https://arxiv.org/abs/2604.15483), and explicit intermediate reasoning lifts task progress from **0.55 to 0.67** [[arXiv:2510.03342]](https://arxiv.org/abs/2510.03342).
 - **Continual evolution** — it improves from its own experience, adapts as the mechanism wears, and absorbs newly assigned work. This is the weakest axis by a wide margin: one published loop demonstrates self-improvement from autonomous rollouts [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759), and adaptation to mechanical wear is published by nobody [[arXiv:2104.08212]](https://arxiv.org/abs/2104.08212).
 
 The fourth axis is the one that turns a model into a product, and it is the one nobody has shipped. Hold onto it; Part 6 comes back to it.
-
-## The contract
-
-![The input/output contract](figures/f01-io-contract.png)
-
-Strip away the vocabulary and the object is one function.
-
-**In:** up to 4 camera images at 448×448, up to 6 frames of recent history, the current joint configuration, and one sentence of English [[arXiv:2604.15483 §IV]](https://arxiv.org/abs/2604.15483).
-
-**Out:** an *action chunk* — a block of H = 50 future joint targets, of which only the first 15 or 25 are executed before the model is called again [[arXiv:2604.15483 §VI-B]](https://arxiv.org/abs/2604.15483). The loop runs at 50 Hz on most platforms and 20 Hz on the UR5e [[arXiv:2604.15483 §VII]](https://arxiv.org/abs/2604.15483).
-
-That is the whole interface. The model is a setpoint generator: it does not replace your servo loop, it feeds it [[arXiv:2604.15483 §VII]](https://arxiv.org/abs/2604.15483). Two properties matter more than they look. It predicts about a second of motion and commits to only a third of it, which is what buys the time to think [[arXiv:2506.07339]](https://arxiv.org/abs/2506.07339). And the adaptation channel is the sentence — a new task is a new instruction, not a new dataset [[arXiv:2604.15483 §V]](https://arxiv.org/abs/2604.15483).
-
-Chunking is not an implementation detail, and the ablation behind it is stark. Predicting a single step at a time yields **1%** success on a fine bimanual task; predicting **100** steps at a time yields **44%** [[arXiv:2304.13705]](https://arxiv.org/abs/2304.13705). The mechanism is compounding error: a small deviation moves the robot to a state slightly outside the training distribution, where the next prediction is slightly worse. Committing to a block of motion divides the number of opportunities for that loop to diverge [[arXiv:2304.13705]](https://arxiv.org/abs/2304.13705).
 
 ## The ablation that separates a foundation model from a big policy
 
@@ -109,11 +95,23 @@ This is a product decision, and it is usually deferred. It should not be, becaus
 
 ![System decomposition, with what crosses each edge and at what rate](figures/f12-brain-body.png)
 
-## The brain
+## The brain, and its contract
 
-A generalist vision-language-action model. It reads the scene and writes a setpoint. What it must carry:
+![The input/output contract](figures/f01-io-contract.png)
 
-- **Vision, language, and proprioception.** Present in every shipped system — images, a joint-configuration vector, and an instruction [[arXiv:2604.15483 §IV]](https://arxiv.org/abs/2604.15483). A representative platform exposes a 14-dimensional state [[repo: openpi aloha_policy.py]](https://github.com/Physical-Intelligence/openpi/blob/main/src/openpi/policies/aloha_policy.py).
+Strip away the vocabulary and the brain is one function, called twenty to fifty times a second.
+
+**In:** up to 4 camera images at 448×448, up to 6 frames of recent history, the current joint configuration, and one sentence of English [[arXiv:2604.15483 §IV]](https://arxiv.org/abs/2604.15483).
+
+**Out:** an *action chunk* — a block of H = 50 future joint targets, of which only the first 15 or 25 are executed before the model is called again [[arXiv:2604.15483 §VI-B]](https://arxiv.org/abs/2604.15483). The loop runs at 50 Hz on most platforms and 20 Hz on the UR5e [[arXiv:2604.15483 §VII]](https://arxiv.org/abs/2604.15483).
+
+That is the whole interface, and note where its edges fall: this is the brain's boundary, not the machine's. The model is a setpoint generator — it does not replace your servo loop, it feeds it [[arXiv:2604.15483 §VII]](https://arxiv.org/abs/2604.15483). It predicts about a second of motion and commits to only a third of it, which is what buys the time to think [[arXiv:2506.07339]](https://arxiv.org/abs/2506.07339).
+
+Chunking is not an implementation detail, and the ablation behind it is stark. Predicting a single step at a time yields **1%** success on a fine bimanual task; predicting **100** steps at a time yields **44%** [[arXiv:2304.13705]](https://arxiv.org/abs/2304.13705). The mechanism is compounding error: a small deviation moves the robot to a state slightly outside the training distribution, where the next prediction is slightly worse. Committing to a block of motion divides the number of opportunities for that loop to diverge [[arXiv:2304.13705]](https://arxiv.org/abs/2304.13705).
+
+Read that input list again, because what it does *not* contain is the argument of the next two sections. What the brain must carry:
+
+- **Vision, language, and proprioception.** The three channels above, present in every shipped system [[arXiv:2604.15483 §IV]](https://arxiv.org/abs/2604.15483). A representative platform exposes a 14-dimensional state [[repo: openpi aloha_policy.py]](https://github.com/Physical-Intelligence/openpi/blob/main/src/openpi/policies/aloha_policy.py).
 - **Reasoning.** Not a slogan: an explicit intermediate representation that the rest of the system consumes. Refreshed every 4 seconds in the π-series [[arXiv:2604.15483 §VI]](https://arxiv.org/abs/2604.15483), worth **0.55 to 0.67** in task progress where it has been ablated [[arXiv:2510.03342]](https://arxiv.org/abs/2510.03342).
 - **Force and touch.** Measured by research systems and absent from every frontier model. Adding a force channel is worth **23.2%** on average and takes plug insertion from about **10%** to about **80%** — from only 244 training trajectories [[arXiv:2505.22159]](https://arxiv.org/abs/2505.22159). Tactile sensing takes USB insertion from **5% to 35%**, charger insertion from **40% to 90%**, and out-of-distribution wiping from **0% to 80%** [[arXiv:2507.09160]](https://arxiv.org/abs/2507.09160).
 - **Audio.** No frontier robot foundation model publishes an audio input path. Named here as a gap rather than developed [[arXiv:2604.15483]](https://arxiv.org/abs/2604.15483).

@@ -30,10 +30,6 @@ A bimanual UR5e that had never seen a laundry demonstration folded a shirt at 85
 
 Task generalization is demonstrated across 14 scenarios with 3 to 6 open-ended instructions in unseen rooms [[arXiv:2604.15483 §IX-B]](https://arxiv.org/abs/2604.15483). Embodiment generalization is demonstrated with a ceiling, across 22 embodiments and 60 datasets [[arXiv:2310.08864]](https://arxiv.org/abs/2310.08864). Continual evolution has exactly one published loop [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759), and nothing at all on mechanical wear [[arXiv:2104.08212]](https://arxiv.org/abs/2104.08212).
 
-![](figures/f01-io-contract.png)
-
-Up to 4 images at 448×448, 6 frames of history, a joint configuration and one sentence go in; 50 future joint targets come out, of which 15 or 25 execute before the model is called again [[arXiv:2604.15483 §IV]](https://arxiv.org/abs/2604.15483). The model is a setpoint generator — it feeds the servo loop rather than replacing it [[arXiv:2604.15483 §VII]](https://arxiv.org/abs/2604.15483).
-
 ![](slides/s04-ablation.en.png)
 
 Strip web pretraining from the same architecture and emergent skills go to 0% and generalization to 1%; restore it and they are 48.7% and 47% [[arXiv:2310.08864 Table II]](https://arxiv.org/abs/2310.08864). The semantics are inherited, which is the only reason any of this starts from something the internet already paid for [[arXiv:2307.15818]](https://arxiv.org/abs/2307.15818).
@@ -49,6 +45,10 @@ An H100 draws 700 W [[spec: NVIDIA H100 SXM]](https://www.nvidia.com/en-us/data-
 ## Part 2 — What it is made of
 
 ![](figures/f12-brain-body.png)
+
+![](figures/f01-io-contract.png)
+
+Up to 4 images at 448×448, 6 frames of history, a joint configuration and one sentence go in; 50 future joint targets come out, of which 15 or 25 execute before the model is called again [[arXiv:2604.15483 §IV]](https://arxiv.org/abs/2604.15483). That is the brain's boundary, not the machine's — the model is a setpoint generator that feeds the servo loop rather than replacing it [[arXiv:2604.15483 §VII]](https://arxiv.org/abs/2604.15483).
 
 ![](slides/s06-brain-body.en.png)
 
