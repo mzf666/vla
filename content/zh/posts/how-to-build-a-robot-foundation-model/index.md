@@ -128,7 +128,7 @@ chunk 不是实现细节，背后的消融结果相当刺眼：一次只预测�
 - **灵巧与精细控制。** 研究级机械臂接受 1 kHz 的指令 [[spec: Franka Research 3]](https://franka.de/products/franka-research-3)，而它上面那个策略产出 setpoint 的频率是 50 Hz [[arXiv:2604.15483 §VII]](https://arxiv.org/abs/2604.15483)。接触物理活在模型够不着的频段里，这正是 harness 必须存在的原因。
 - **精度。** 重复定位精度的跨度：研究级机械臂优于 0.1 毫米 [[spec: Franka Research 3]](https://franka.de/products/franka-research-3)，领域内大量训练实际用的低成本机械臂是 1 毫米 [[spec: Trossen ViperX 300]](https://www.trossenrobotics.com/viperx-300)——共享同一份数据集的这些平台之间，差了大约 **10x** [computed: 1 mm against 0.1 mm]。
 - **鲁棒与安全。** 面向人类环境设计的人形机器人，公开数据是 95% 反驱性、30 kg 自重、头部伤害指标低于 250 [[spec: 1X NEO]](https://www.1x.tech/neo)。标准写得很明确：降速模式上限 250 mm/s，安全等级 PL d 与 SIL 2 [std: ISO 10218:2025]；接触力上限从面部 65 N 到大腿 220 N [std: ISO/TS 15066:2016]。
-- **运维成本。** 领域内最大的公开缺口。所有舰队规模的论文里，平均无故障时间都没披露 [[arXiv:2104.08212]](https://arxiv.org/abs/2104.08212)；跨台制造差异被点过名，但从来没被量化 [[arXiv:2506.18123]](https://arxiv.org/abs/2506.18123)。
+- **运维成本。** 领域内最大的公开缺口。所有做到规模化部署的研究里，平均无故障时间都没披露 [[arXiv:2104.08212]](https://arxiv.org/abs/2104.08212)；跨台制造差异被点过名，但从来没被量化 [[arXiv:2506.18123]](https://arxiv.org/abs/2506.18123)。
 
 ## 中间那层 harness
 
@@ -411,7 +411,7 @@ Speed: 8000. Quality: 5. Mistake: false. Control Mode: joint.
 
 **通过条件。** 单台机器人的算力成本变成 **\$3,499** 对一块数据中心 GPU，功耗变成 **40 到 130 W** 对 **700 W** [computed: EDGE-19 against EDGE-25]。*关掉大脑/部署，并兑现第 1 部分的产品结论。*
 
-## M5 —— 跑一支舰队
+## M5 —— 规模化运维
 
 把平均无故障时间和重标定周期发出来，这是没有实验室披露过的两个数 [[arXiv:2104.08212]](https://arxiv.org/abs/2104.08212)。**通过条件。** 换第二种本体、换第二个场地，不重跑预训练 [[arXiv:2408.11812]](https://arxiv.org/abs/2408.11812)。*关掉身体/硬件与身体/运行时。*
 
@@ -453,9 +453,9 @@ Speed: 8000. Quality: 5. Mistake: false. Control Mode: joint.
 | 缺口 | 状态 |
 |---|---|
 | 预训练数据总量、各来源混合权重、优化器与总算力 | 未披露 [[arXiv:2604.15483]](https://arxiv.org/abs/2604.15483) |
-| 任何前沿模型背后的机器人舰队规模 | 未披露 [[arXiv:2604.15483]](https://arxiv.org/abs/2604.15483) |
+| 任何前沿模型背后到底有多少台机器人 | 未披露 [[arXiv:2604.15483]](https://arxiv.org/abs/2604.15483) |
 | 单条演示的成本，所有实验室 | 未披露 [[arXiv:2506.18123]](https://arxiv.org/abs/2506.18123) |
-| 平均无故障时间，所有舰队规模的论文 | 未披露 [[arXiv:2104.08212]](https://arxiv.org/abs/2104.08212) |
+| 平均无故障时间，所有规模化部署的研究 | 未披露 [[arXiv:2104.08212]](https://arxiv.org/abs/2104.08212) |
 | 跨台制造差异 | 点过名，未量化 [[arXiv:2506.18123]](https://arxiv.org/abs/2506.18123) |
 | 光子到力矩的延迟，任何平台 | 未披露 [[repo: openpi websocket_policy_server.py]](https://github.com/Physical-Intelligence/openpi/blob/main/src/openpi/serving/websocket_policy_server.py) |
 | 摩擦、负载、刚度上的泛化扫描 | 无实验室发表 [[arXiv:2604.15483]](https://arxiv.org/abs/2604.15483) |
