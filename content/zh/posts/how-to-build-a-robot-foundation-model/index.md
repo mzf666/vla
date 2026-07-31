@@ -300,7 +300,9 @@ transformer 能赢，是因为序列建模足够通用，*而且*这个架构计
 | 卡点五：推理意味着一台真机器 | M0 的延迟预算，M4 的运行时 |
 | 难点网格的全部六格 | M0 到 M5，一格一个 |
 
-六个里程碑。每个都有一个用数字表述的通过条件，因此都可能失败。排序原则只有一条：先造量具，再造被量的东西 [[arXiv:2506.18123]](https://arxiv.org/abs/2506.18123)。
+六个里程碑，每个都有一个用数字表述的通过条件，因此都可能失败。排序原则只有一条：先造量具，再造被量的东西 [[arXiv:2506.18123]](https://arxiv.org/abs/2506.18123)。
+
+凡是已经在前沿规模上被真正执行过的里程碑，这里讲的都是「实际造出来的东西」，而不是「理想中该怎么做」——π 系列是目前唯一被完整披露的实例，下面的图也全部来自对它的逐行精读 [[arXiv:2604.15483]](https://arxiv.org/abs/2604.15483)。
 
 ## 先把「怎么借鉴」说清楚
 
@@ -311,7 +313,7 @@ transformer 能赢，是因为序列建模足够通用，*而且*这个架构计
 | 阶段 | 在语言里 | 在机器人里 | 哪里断了 |
 |---|---|---|---|
 | 预训练 | 网页语料上的 next-token | 从 VLM checkpoint 出发，一个通才覆盖所有机器人和任务 | 语料不存在，只能被制造出来 [[arXiv:2410.24164]](https://arxiv.org/abs/2410.24164) |
-| 后训练 | 在精选数据上做指令微调 | 用 subgoal 和 episode 元数据做条件；把输入从固定装机中augment 开 | 监督信号是一条演示，不是一个偏好 [[arXiv:2604.15483 §V-E]](https://arxiv.org/abs/2604.15483) |
+| 后训练 | 在精选数据上做指令微调 | 用 subgoal 和 episode 元数据做条件；把输入从固定装机上解绑 | 监督信号是一条演示，不是一个偏好 [[arXiv:2604.15483 §V-E]](https://arxiv.org/abs/2604.15483) |
 | RL | 对着 reward model 做偏好优化 | 在机器人自己的 rollout 上做 advantage 条件化 | 没有 verifier；奖励稀疏，rollout 烧的是机器人小时 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759) |
 
 ## M0 —— 造量具
@@ -326,9 +328,23 @@ transformer 能赢，是因为序列建模足够通用，*而且*这个架构计
 
 ## M1 —— 造数据引擎
 
+![数据引擎：八个来源汇成一份带标注的混合](figures/b01-f08-data-engine.png)
+
+### 它是一个飞轮，不是一个数据集
+
+前沿系统的数据来自 **8** 个来源，汇进同一份带标注的混合 [[arXiv:2604.15483 §VI-A]](https://arxiv.org/abs/2604.15483)。其中三个值得点名，因为一个只想「攒一个静态数据集」的团队根本想不到要采它们：**包含失败在内的自主评测 rollout**、在这些 rollout 里发生的**人工介入**，以及 RL 训练过程中收集的数据——实验室把最后这一项称为一种蒸馏过程 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。已部署策略跑出来的 rollout，就是明天的训练数据。要造的是这个回路，不是那份语料。
+
+有两条纪律，决定这个回路是良性还是退化的。
+
+**故意把差数据留下。** 失败、包含失误的成功、以及旧版本模型的评测数据，都是被刻意保留的 [[arXiv:2604.15483 §VI-A]](https://arxiv.org/abs/2604.15483)。这跟「先过滤一遍」的本能正好相反，而它能成立完全依赖下一节：**是元数据让「留下它们」变得安全**。
+
+**把评测数据从训练里排除。** 任何以泛化为目的的评测任务中收集到的自主数据，都被排除在混合之外 [[arXiv:2604.15483 §VI-A]](https://arxiv.org/abs/2604.15483)。没有这条排除，飞轮就在悄悄地训练测试集，而 M0 产出的每一个数字都会变成虚构。
+
 ### 一条 episode 里必须录进什么
 
-这是最多团队做错的地方，因为做错的代价在返工之前完全看不见。π 系列把每条 episode 当作一个**带条件的样本**来处理，而不是一条原始轨迹，条件就是 prompt 里的纯文本 [[arXiv:2604.15483 §V-E]](https://arxiv.org/abs/2604.15483)：
+![prompt 的解剖：条件化在「怎么做出来的」，而不只是「做了什么」](figures/b01-f05-prompt-anatomy.png)
+
+每条 episode 都被存成一个**带条件的样本**，而不是一条原始轨迹，条件就是 prompt 里的纯文本 [[arXiv:2604.15483 §V-E]](https://arxiv.org/abs/2604.15483)：
 
 ```
 <multi-view observation><multi-view subgoals>
@@ -337,11 +353,13 @@ Speed: 8000. Quality: 5. Mistake: false. Control Mode: joint.
 <proprioception>
 ```
 
-每个字段都不是摆设。**Speed** 是 episode 长度（时间步），按 **500** 步一档分箱 [[arXiv:2604.15483 §V-C]](https://arxiv.org/abs/2604.15483)。**Quality** 是人打的 **1 到 5** 的整数 [[arXiv:2604.15483 §V-C]](https://arxiv.org/abs/2604.15483)。**Mistake** 是逐段的粗粒度布尔标注 [[arXiv:2604.15483 §V-C]](https://arxiv.org/abs/2604.15483)。**Control Mode** 区分关节空间和末端执行器指令 [[arXiv:2604.15483 §V-D]](https://arxiv.org/abs/2604.15483)。
+**Speed** 是 episode 长度（时间步），按 **500** 步一档分箱 [[arXiv:2604.15483 §V-C]](https://arxiv.org/abs/2604.15483)。**Quality** 是人打的 **1 到 5** 的整数 [[arXiv:2604.15483 §V-C]](https://arxiv.org/abs/2604.15483)。**Mistake** 是逐段的粗粒度布尔标注 [[arXiv:2604.15483 §V-C]](https://arxiv.org/abs/2604.15483)。**Control Mode** 区分关节空间和末端执行器指令，而且是唯一一个从不被丢弃的字段 [[arXiv:2604.15483 §V-D]](https://arxiv.org/abs/2604.15483)。
 
-这样做换来的是推理期的一个旋钮。因为模型是带着这些字段训出来的，你可以在运行时要一种从没单独采集过的行为：把 **quality 提到 5**、**mistake 设成 false**，策略就去模仿你数据里好的那一半 [[arXiv:2604.15483 §VII]](https://arxiv.org/abs/2604.15483)。平庸的演示从「污染」变成了「对照」。
+整个想法就浓缩在这一串字符里：把条件加在**这条数据是怎么产生的**上，而不只是加在**做了什么**上。因为模型是带着这些字段训出来的，它们在推理期就变成旋钮——把 **quality 提到 5**、**mistake 设成 false**，策略就去模仿你数据里好的那一半 [[arXiv:2604.15483 §VII]](https://arxiv.org/abs/2604.15483)。平庸的演示从「污染」变成了「对照」，这也正是「把差数据留下」能成为策略而不是疏忽的原因。
 
-**力信号和元数据必须从第一天就录。** 事后补任何一路都等于把语料重采一遍；而在已经加过力通道的地方，它平均值 **23.2%** [[arXiv:2505.22159]](https://arxiv.org/abs/2505.22159)。
+![条件化在元数据上，到底买到了什么](figures/b01-f09-metadata-scaling.png)
+
+**力信号和元数据必须从第一天就录。** 事后补任何一路都等于把语料重采一遍；而在已经加过力通道的地方，它平均涨 **23.2%** [[arXiv:2505.22159]](https://arxiv.org/abs/2505.22159)。
 
 ### episode 从哪来
 
@@ -351,17 +369,23 @@ Speed: 8000. Quality: 5. Mistake: false. Control Mode: joint.
 
 ## M2 —— 模型怎么参数化
 
-![action head 是怎么接上去的](figures/f17-model-stack.png)
+![架构与数据流](figures/b01-f06-architecture.png)
 
-### 这一摞有多大
+### 这一摞怎么摆
 
-总共约 **5B** 参数，而且切得很不均匀，这是故意的：一个 **4B** 的 Gemma-3 backbone，里面含一个 **400M** 的 SigLIP 级视觉编码器，外加一个 **860M** 的 flow-matching action expert [[arXiv:2604.15483 §IV]](https://arxiv.org/abs/2604.15483)。backbone 是继承来的语义住的地方——也就是第 1 部分那个 RT-2-X 消融证明了「机器人数据教不出来」的那部分。expert 是运动技能住的地方。
+控制通路上约 **5B** 参数：相机画面进入一个 **400M** 的 SigLIP 级视觉编码器，经过一个做时间与空间压缩的历史编码器，抵达 **4B** 的 Gemma-3 backbone；一个 **860M** 的 flow-matching action expert 读取 backbone 的激活，吐出 chunk [[arXiv:2604.15483 §IV]](https://arxiv.org/abs/2604.15483)。本体感知走线性投影，每个历史状态一个 token [[arXiv:2604.15483 §VI-B]](https://arxiv.org/abs/2604.15483)。另有一个 **14B** 的 world model——**7B** 理解加 **7B** 生成——跑在控制通路**旁边**而不是里面，产出最多 **3** 张 subgoal 图像 [[arXiv:2604.15483 App. C]](https://arxiv.org/abs/2604.15483)。
 
-### action head 怎么接上去
+比这张快照更值得看的是它的演化路径，因为它显示了哪些改动真的回本了：
 
-正好 **50** 个 action token，它们彼此之间是双向的，同时 attend backbone 的激活 [[arXiv:2604.15483 §VI-B]](https://arxiv.org/abs/2604.15483)。注意力是 block-causal：观测和 subgoal token 在各自块内双向，后面跟着的文本是因果的 [[arXiv:2604.15483 §VI-B]](https://arxiv.org/abs/2604.15483)。flow 的时间步通过 adaptive RMSNorm 注入 [[arXiv:2604.15483 §VI-B]](https://arxiv.org/abs/2604.15483)。本体感知走一个线性投影，每个历史状态一个 token [[arXiv:2604.15483 §VI-B]](https://arxiv.org/abs/2604.15483)。
+![演化路径](figures/b01-f04-lineage.png)
 
-最值得抄的是那个**双目标**。一个 FAST token 的交叉熵头训 backbone，flow matching 训 expert，两者之间用 stop-gradient 耦合 [[arXiv:2604.15483 §III]](https://arxiv.org/abs/2604.15483)。离散头去塑造 backbone 的表示，同时不会把连续头一起拽偏。FAST token 只在训练期存在，而且 FAST token 和 flow action 之间从不互相 attend [[arXiv:2604.15483 App. B]](https://arxiv.org/abs/2604.15483)。到了推理期，离散那一支直接消失。
+### 那道防火墙，才是最该抄的部分
+
+![注意力掩码，精确版](figures/b01-f07-attention-mask.png)
+
+一个 FAST token 的交叉熵头训 backbone，flow matching 训 expert，两者用 stop-gradient 耦合：**action expert 的梯度不回流进 backbone** [[arXiv:2604.15483 §III]](https://arxiv.org/abs/2604.15483)。离散头去塑造 backbone 的表示，而连续头拽不动它。这就是 knowledge insulation，也是让一个模型同时吸收网页语义和运动技能、而两者互不抹除的那个机制。
+
+注意力模式执行的是同一种隔离。正好 **50** 个 action token，彼此双向，并 attend backbone 的激活；其余部分 block-causal；而 FAST token 和 flow action 之间从不互相 attend [[arXiv:2604.15483 App. B]](https://arxiv.org/abs/2604.15483)。FAST token 只在训练期存在——到了推理期，离散那一支直接消失 [[arXiv:2604.15483 App. B]](https://arxiv.org/abs/2604.15483)。
 
 这也是对卡点三的回答。action head 正是团队最容易因为「时髦」而伸手去拿 diffusion 的地方；而实测的账是 **10.1 Hz** 配 **95.4%**，对面 **109.7 Hz** 配 **95.3%** [[arXiv:2502.19645]](https://arxiv.org/abs/2502.19645)。算力要花在 backbone 上，别花在去噪步数上。
 
@@ -379,9 +403,11 @@ Speed: 8000. Quality: 5. Mistake: false. Control Mode: joint.
 
 ### 阶段二 —— 后训练
 
-真正干活的是这份增广时间表，而下面每个数字都是已披露的超参数，不是建议。整段历史以 **p = 0.3** 丢弃，后置相机视角同样 **p = 0.3** [[arXiv:2604.15483 §VI-B]](https://arxiv.org/abs/2604.15483)。episode 元数据整体 **15%** 的概率丢掉，每个分量再额外 **5%** [[arXiv:2604.15483 §V-E]](https://arxiv.org/abs/2604.15483)。**25%** 的 batch 携带 subgoal 图像，而在这些样本内部，subtask 指令有 **30%** 的概率被丢掉 [[arXiv:2604.15483 §V-E]](https://arxiv.org/abs/2604.15483)。真实 subgoal 的采样是 **p = 0.25** 取段末、**p = 0.75** 在往后 **4** 秒内均匀取 [[arXiv:2604.15483 §VI-C]](https://arxiv.org/abs/2604.15483)。
+下面每个数字都是已披露的超参数，不是建议。整段历史以 **p = 0.3** 丢弃，后置相机视角同样 **p = 0.3** [[arXiv:2604.15483 §VI-B]](https://arxiv.org/abs/2604.15483)。episode 元数据整体 **15%** 的概率丢掉，每个分量再额外 **5%** [[arXiv:2604.15483 §V-E]](https://arxiv.org/abs/2604.15483)。**25%** 的 batch 携带 subgoal 图像，而在这些样本内部，subtask 指令有 **30%** 的概率被丢掉 [[arXiv:2604.15483 §V-E]](https://arxiv.org/abs/2604.15483)。真实 subgoal 的采样是 **p = 0.25** 取段末、**p = 0.75** 在往后 **4** 秒内均匀取 [[arXiv:2604.15483 §VI-C]](https://arxiv.org/abs/2604.15483)。
 
-其中两条值得解释。subgoal 的占比被压在四分之一，是因为一旦有了 subgoal，目标函数会朝逆动力学退化、训练快得多——不设上限的话，模型就学会去读 subgoal 而不是读场景 [[arXiv:2604.15483 §V-E]](https://arxiv.org/abs/2604.15483)。而那些 dropout 也不是通常意义上的正则化：它们是在阻止策略把自己绑死在一套固定的相机装机上，也就是第 4 部分量化过的那个从 **100%** 掉到 **0%** 的失效模式 [[arXiv:2409.03403]](https://arxiv.org/abs/2409.03403)。
+dropout 正是让每个字段在测试期都变成**可选**的那个机制：字段缺席时模型必须依然称职，这才使得你可以省掉 subtask、省掉元数据、省掉历史，仍然拿到一个能用的策略 [[arXiv:2604.15483 §V-E]](https://arxiv.org/abs/2604.15483)。
+
+有两个比例值得解释。subgoal 的占比被压在四分之一，是因为一旦有了 subgoal，目标函数会朝逆动力学退化、训练快得多——不设上限的话，模型就学会去读 subgoal 而不是读场景 [[arXiv:2604.15483 §V-E]](https://arxiv.org/abs/2604.15483)。而那些 dropout 也不是通常意义上的正则化：它们是在阻止策略把自己绑死在一套固定的相机装机上，也就是第 4 部分量化过的那个从 **100%** 掉到 **0%** 的失效模式 [[arXiv:2409.03403]](https://arxiv.org/abs/2409.03403)。
 
 训练时要注入 **0 到 12** 个时间步的模拟推理延迟——在 50 Hz 下就是 **240 毫秒**的预算 [computed: 12 timesteps at 50 Hz]。放在训练期做而不是测试期做，推理时不额外收费 [[arXiv:2604.15483 App. D]](https://arxiv.org/abs/2604.15483)。
 
@@ -389,25 +415,29 @@ Speed: 8000. Quality: 5. Mistake: false. Control Mode: joint.
 
 没有便宜的 verifier，所以真正work的方法是：从机器人自己的经验里学一个 value function，再把策略条件化在它上面 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。
 
-训一个分布式 value model——架构和策略相同，但 backbone 小到 **670M**，在 **201** 个离散化蒙特卡洛回报的分箱上做 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。奖励是稀疏的：成功时终止步给 0，失败时给一个大的负常数，其余每步 **−1** [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。然后把策略条件化在一个**以文本形式插入的二值化 advantage 指示符**上，位置放在语言输入之后，这样只有动作的对数似然会受影响 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。人工介入的片段被强制标成正指示符，前提假设是专家的纠正动作是好动作 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。
+训一个分布式 value model——架构和策略相同，但 backbone 小到 **670M**，在 **201** 个离散化蒙特卡洛回报的分箱上做 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。奖励是稀疏的：成功时终止步给 0，失败时给一个大的负常数，其余每步 **-1** [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。然后把策略条件化在一个**以文本形式插入的二值化 advantage 指示符**上，位置放在语言输入之后，这样只有动作的对数似然会受影响 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。人工介入的片段被强制标成正指示符，前提假设是专家的纠正动作是好动作 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。
 
 有两条纪律决定它收不收敛。改进阈值取在 value function 自己对该任务预测值的第 **30** 百分位 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。以及——**每一轮迭代都从预训练 checkpoint 微调，绝不从上一轮迭代微调**，否则策略会漂 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。每轮按约 **300** 条轨迹做预算 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。
 
-**通过条件。** 相对 M2，吞吐至少 **2x**，失败率至少减半 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。可用来对标的参考平台：两条 **6** 自由度机械臂、平行夹爪、**3** 路相机，任务时长 **5 到 15** 分钟 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。
+**通过条件。** 相对 M2，吞吐至少 **2x**，失败率至少减半 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。参考平台：两条 **6** 自由度机械臂、平行夹爪、**3** 路相机，任务时长 **5 到 15** 分钟 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。
 
 这个里程碑就是第 1 部分那第四条能力轴，也是最可能延期的一个。它同时是通往「交付之后还会变好的机器人」唯一被公开验证过的路径 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。*关掉大脑/部署里训练相关的那半。*
 
-### 推理期你真正会动的旋钮
-
-去噪 **5** 步；50 步的 chunk 里执行 **15 或 25** 步 [[arXiv:2604.15483 §VII]](https://arxiv.org/abs/2604.15483)。元数据上的 classifier-free guidance 取 **1.3**、**1.7** 或 **2.2** [[arXiv:2604.15483 §VII]](https://arxiv.org/abs/2604.15483)。speed 提示词取该任务 episode 长度的第 **15** 百分位，quality 恒为 **5**，mistake 恒为 false [[arXiv:2604.15483 §VII]](https://arxiv.org/abs/2604.15483)。subgoal 每 **4** 秒刷新一次，或者语义意图变化时刷新，以先到者为准 [[arXiv:2604.15483 §VII]](https://arxiv.org/abs/2604.15483)。
-
 ## M4 —— 把算力搬上机器
 
-这是第 1 部分许下的那个里程碑，也是把 demo 变成产品的那一步。
+![服务运行时：三条异步线程](figures/b01-f10-runtime-timeline.png)
 
-蒸馏加量化，压进 **130 W** 的功耗上限 [[spec: NVIDIA Jetson AGX Thor]](https://www.nvidia.com/en-us/autonomous-machines/embedded-systems/)，成功率损失不超过 **1** 个百分点 [computed: this plan]。这一摞按「谁先回本」排序：先上机器人专用量化，因为 W4A8 能守住 **97.6%** 并把 **4.27 GB 压到 1.28 GB**，而通用语言模型量化只剩 **76.3%** [[arXiv:2602.20309]](https://arxiv.org/abs/2602.20309)。再做步数削减——单步 flow 把某个策略从 **274 毫秒压到 83 毫秒**，成功率还升了 [[arXiv:2604.05656]](https://arxiv.org/abs/2604.05656)。最后是编译，值 **1.5 到 3.3x** [[repo: Isaac-GR00T hardware_recommendation.md]](https://github.com/NVIDIA/Isaac-GR00T/blob/main/getting_started/hardware_recommendation.md)。别忘了那个悬崖：3.0 bit/权重时的 **94.8%**，到 2.0 时变成 **48.0%** [[arXiv:2605.24011]](https://arxiv.org/abs/2605.24011)。
+### 第一步：先别让机器人干等
 
-也留意前沿是怎么处理那些压不下去的部件的：world model 被放在 **4** 块 H100 上服务，所有大矩阵乘法量化到 **8** bit，配一个改过的注意力 kernel，异步跑，而策略照常继续执行 [[arXiv:2604.15483 App. D]](https://arxiv.org/abs/2604.15483)。对于不在控制回路里的部件，放到机外是一个合理答案。
+在压缩任何东西之前，先把调度修好。服务运行时跑三条线程，谁也不等谁：高层策略吐 subtask，world model 用 **1.25** 秒生成一张 subgoal，而 VLA 始终拿当前最新的上下文继续执行 [[arXiv:2604.15483 §VII]](https://arxiv.org/abs/2604.15483)。subgoal 每 **4** 秒刷新一次，或者语义意图变化时刷新 [[arXiv:2604.15483 §VII]](https://arxiv.org/abs/2604.15483)。每执行完一个前缀就跑一次推理，去噪 **5** 步，耗时 **38** 到 **127** 毫秒 [[arXiv:2604.15483 App. D]](https://arxiv.org/abs/2604.15483)。
+
+异步才是这里承重的那个想法，而且它不要钱：**1.25** 秒的 world model 调用放在同步回路里是致命的，放在这套调度里则完全看不见 [[arXiv:2604.15483 App. D]](https://arxiv.org/abs/2604.15483)。
+
+### 第二步：再压缩
+
+蒸馏加量化，压进 **130 W** 的功耗上限 [[spec: NVIDIA Jetson AGX Thor]](https://www.nvidia.com/en-us/autonomous-machines/embedded-systems/)，成功率损失不超过 **1** 个百分点 [computed: this plan]。按「谁先回本」排序：先上机器人专用量化，因为 W4A8 能守住 **97.6%** 并把 **4.27 GB 压到 1.28 GB**，而通用语言模型量化只剩 **76.3%** [[arXiv:2602.20309]](https://arxiv.org/abs/2602.20309)。再做步数削减——单步 flow 把某个策略从 **274 毫秒压到 83 毫秒**，成功率还升了 [[arXiv:2604.05656]](https://arxiv.org/abs/2604.05656)。最后是编译，值 **1.5 到 3.3x** [[repo: Isaac-GR00T hardware_recommendation.md]](https://github.com/NVIDIA/Isaac-GR00T/blob/main/getting_started/hardware_recommendation.md)。别忘了那个悬崖：3.0 bit/权重时的 **94.8%**，到 2.0 时变成 **48.0%** [[arXiv:2605.24011]](https://arxiv.org/abs/2605.24011)。
+
+也留意前沿是怎么处理那个压不下去的部件的：world model 被放在 **4** 块 H100 上服务，所有大矩阵乘法量化到 **8** bit，配一个改过的注意力 kernel [[arXiv:2604.15483 App. D]](https://arxiv.org/abs/2604.15483)。对于不在控制回路里的部件，放到机外是一个合理答案。
 
 **通过条件。** 单台机器人的算力成本变成 **\$3,499** 对一块数据中心 GPU，功耗变成 **40 到 130 W** 对 **700 W** [computed: EDGE-19 against EDGE-25]。*关掉大脑/部署，并兑现第 1 部分的产品结论。*
 

@@ -138,13 +138,25 @@ backbone 固定住，diffusion 多花的算力换来约 0.1 个百分点，代�
 
 把每条 episode 都当作**带条件的样本**来录：speed 按 500 步分箱、quality 是人打的 1 到 5 分、mistake 是逐段布尔、control mode [[arXiv:2604.15483 §V-C]](https://arxiv.org/abs/2604.15483)。到了运行时这些就是旋钮——把 quality 提到 5、mistake 设成 false，策略就去模仿你数据里好的那一半 [[arXiv:2604.15483 §VII]](https://arxiv.org/abs/2604.15483)。
 
-![](figures/f17-model-stack.png)
+![](figures/b01-f08-data-engine.png)
 
-总共约 5B 参数：4B backbone 装继承来的语义，860M flow-matching expert 装运动技能 [[arXiv:2604.15483 §IV]](https://arxiv.org/abs/2604.15483)。正好 50 个 action token，彼此双向；一个 FAST 交叉熵头通过 stop-gradient 塑造 backbone，到推理期直接消失 [[arXiv:2604.15483 App. B]](https://arxiv.org/abs/2604.15483)。
+八个来源汇成一份带标注的混合，而已部署策略跑出的 rollout 就是明天的训练数据 [[arXiv:2604.15483 §VI-A]](https://arxiv.org/abs/2604.15483)。失败和带失误的成功被刻意留下；以泛化为目的的评测中产生的自主数据则被排除，否则飞轮就在训练测试集 [[arXiv:2604.15483 §VI-A]](https://arxiv.org/abs/2604.15483)。
+
+![](figures/b01-f06-architecture.png)
+
+控制通路上约 5B：400M 视觉编码器加 4B backbone 装继承来的语义，860M flow expert 装运动技能，另有一个 14B world model 跑在回路旁边而不是里面 [[arXiv:2604.15483 §IV]](https://arxiv.org/abs/2604.15483)。
+
+![](figures/b01-f07-attention-mask.png)
+
+最该抄的是那道防火墙：action expert 的梯度不回流进 backbone [[arXiv:2604.15483 §III]](https://arxiv.org/abs/2604.15483)。FAST token 只在训练期存在，且从不与 flow action 互相 attend [[arXiv:2604.15483 App. B]](https://arxiv.org/abs/2604.15483)。
 
 ![](slides/s17-training-schedule.zh.png)
 
 历史以 p = 0.3 丢弃，元数据 15% 与 5%，25% 的 batch 带 subgoal [[arXiv:2604.15483 §V-E]](https://arxiv.org/abs/2604.15483)。这些不是通常意义的正则化——它们在阻止策略绑死到固定相机装机 [[arXiv:2409.03403]](https://arxiv.org/abs/2409.03403)。
+
+![](figures/b01-f10-runtime-timeline.png)
+
+压缩之前先把调度修好：三条线程谁也不等谁，所以 1.25 秒的 world model 调用从「致命」变成「看不见」 [[arXiv:2604.15483 §VII]](https://arxiv.org/abs/2604.15483)。
 
 ![](slides/s18-recap-loop.zh.png)
 

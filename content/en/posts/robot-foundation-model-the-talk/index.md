@@ -138,13 +138,25 @@ All three language-model stages transfer in form. The third one changes shape, b
 
 Record every episode as a *conditioned* example: speed binned at 500 steps, quality as a human 1 to 5, mistake as a per-segment boolean, control mode [[arXiv:2604.15483 §V-C]](https://arxiv.org/abs/2604.15483). At runtime those become knobs — prompt quality 5 and mistake false and the policy imitates the good half of your data [[arXiv:2604.15483 §VII]](https://arxiv.org/abs/2604.15483).
 
-![](figures/f17-model-stack.png)
+![](figures/b01-f08-data-engine.png)
 
-About 5B parameters: a 4B backbone carrying the inherited semantics, plus an 860M flow-matching expert carrying the motor skill [[arXiv:2604.15483 §IV]](https://arxiv.org/abs/2604.15483). Exactly 50 action tokens, bidirectional among themselves; a FAST cross-entropy head shapes the backbone through a stop-gradient and disappears at inference [[arXiv:2604.15483 App. B]](https://arxiv.org/abs/2604.15483).
+Eight sources feed one annotated mixture, and the deployed policy's rollouts become tomorrow's training data [[arXiv:2604.15483 §VI-A]](https://arxiv.org/abs/2604.15483). Failures and mistake-bearing successes are kept on purpose; autonomous data from generalization evaluations is excluded, or the flywheel trains on the test set [[arXiv:2604.15483 §VI-A]](https://arxiv.org/abs/2604.15483).
+
+![](figures/b01-f06-architecture.png)
+
+About 5B on the control path: a 400M vision encoder and a 4B backbone carrying inherited semantics, an 860M flow expert carrying motor skill, and a 14B world model running beside the loop rather than inside it [[arXiv:2604.15483 §IV]](https://arxiv.org/abs/2604.15483).
+
+![](figures/b01-f07-attention-mask.png)
+
+The part to copy is the firewall: gradients from the action expert do not flow back into the backbone [[arXiv:2604.15483 §III]](https://arxiv.org/abs/2604.15483). FAST tokens exist only at training time and never attend to the flow actions [[arXiv:2604.15483 App. B]](https://arxiv.org/abs/2604.15483).
 
 ![](slides/s17-training-schedule.en.png)
 
 History dropped at p = 0.3, metadata at 15% and 5%, subgoals in 25% of the batch [[arXiv:2604.15483 §V-E]](https://arxiv.org/abs/2604.15483). These are not regularization — they are what stops the policy binding to a fixed camera rig [[arXiv:2409.03403]](https://arxiv.org/abs/2409.03403).
+
+![](figures/b01-f10-runtime-timeline.png)
+
+Before compressing anything, fix the schedule: three threads and nothing waits, so a 1.25 s world-model call is invisible instead of fatal [[arXiv:2604.15483 §VII]](https://arxiv.org/abs/2604.15483).
 
 ![](slides/s18-recap-loop.en.png)
 
