@@ -559,7 +559,20 @@ Two disciplines make it converge rather than drift. The threshold is a percentil
 
 The critic is the opposite case, and the two lines in the algorithm are easy to read as inconsistent until you see they answer different questions. It is refit every round on everything collected so far, because the MDP itself moves — gripper wear and calibration drift mean a value function fitted on round one's fleet is scoring a robot that no longer exists [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759). Whether that refit warm-starts from the previous critic or from its own initialization is undisclosed [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759). Budget about 300 trajectories per iteration [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759).
 
-**The exit most teams should take.** You may not have to run this loop on your generalist at all. Specialists are finetuned from the pre-trained model while the final generalist is trained from scratch on the mixture, and the specialists' RL rollouts enter that mixture as ordinary conditioned examples — which the lab describes as a kind of distillation [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759). Run RL narrowly where it pays, and let M1's flywheel carry the result into the generalist without a policy gradient ever touching it [[arXiv:2604.15483 §VI-A]](https://arxiv.org/abs/2604.15483).
+### What the loop produces, and which model you actually ship
+
+The question the algorithm above does not answer on its own: `pi_next` is *not* the thing you deploy to customers. The loop runs **per task**, and what it produces each round is a **specialist** — one hard task, finetuned from the pre-trained checkpoint, conditioned on the advantage indicator [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759).
+
+That specialist has exactly two jobs, which is why the arrow in the figure returns to step one rather than exiting [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759):
+
+- it goes back onto the fleet as the collector for the next round, so round $k+1$'s data is better than round $k$'s [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759);
+- its rollouts join the dataset permanently, carrying the advantage labels they were scored with [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759).
+
+**The shipped model is the generalist, and it is trained from scratch.** Specialists are finetuned from the pre-trained model, while the final generalist is trained from scratch on the accumulated mixture rather than being finetuned from any specialist [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759). Read the division of labour plainly: the specialists are *instruments for manufacturing data better than your teleoperators can produce*, and the generalist is the product [[arXiv:2604.15483 §VI-A]](https://arxiv.org/abs/2604.15483).
+
+The evidence that this actually works is the part worth staring at. The generalist **exceeds** the RL-trained specialists on throughput for diverse laundry folding and box building — beating them on the specialists' own axis, having never run a policy gradient itself [[arXiv:2604.15483 Fig. 6]](https://arxiv.org/abs/2604.15483).
+
+**So the exit most teams should take.** You may not have to run this loop on your generalist at all, and the frontier generation did not: one model runs RL and produces rollouts, and the *next* model absorbs them as ordinary conditioned training examples, which the lab describes as a kind of distillation [[arXiv:2604.15483 §VI-A]](https://arxiv.org/abs/2604.15483). Run RL narrowly where it pays, and let M1's flywheel carry the result into the generalist without a policy gradient ever touching it [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759).
 
 **Gate.** Throughput at least **2x** and failure rate at least halved against M2 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759). Reference platform: two **6**-DoF arms, parallel-jaw grippers, **3** cameras, tasks of **5 to 15** minutes [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759).
 

@@ -559,7 +559,20 @@ for k in range(K):
 
 critic 恰好相反，而算法里那两行很容易被读成自相矛盾，直到你看出它们回答的是两个不同的问题。critic 每轮都在「迄今为止的全部数据」上重新拟合，因为 MDP 本身在动——夹爪磨损和标定漂移意味着，用第一轮机队拟出来的 value function，正在给一台已经不存在的机器人打分 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。至于这次重拟是从上一轮的 critic 热启动、还是从它自己的初始化开始，没有公开 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。每轮预算约 300 条轨迹 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。
 
-**多数团队应该走的那个出口。** 你的 generalist 也许根本不必跑这个闭环。specialist 从预训练模型微调，而最终的 generalist 是在混合数据上从零训的，specialist 的 RL rollout 就以普通带条件样本的身份进入那份混合——实验室把这称作一种蒸馏 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。在划算的地方窄窄地跑 RL，然后让 M1 的飞轮把结果搬进 generalist，全程不需要任何 policy gradient 碰过它 [[arXiv:2604.15483 §VI-A]](https://arxiv.org/abs/2604.15483)。
+### 这个闭环产出什么，以及最后上线的到底是哪个模型
+
+上面那段算法自己回答不了的问题：`pi_next` **不是**你交付出去的那个模型。这个闭环是**逐任务**跑的，它每一轮产出的是一个 **specialist**——只管一个难任务，从预训练 checkpoint 微调而来，并以 advantage 指示符为条件 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。
+
+这个 specialist 恰好只有两份工作，这也正是图里那根箭头为什么绕回第一步、而不是从这里退出 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)：
+
+- 它回到机队上，当下一轮的采集器，好让第 $k+1$ 轮的数据比第 $k$ 轮更好 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)；
+- 它跑出的 rollout 永久进入数据集，并带着当初给它打的 advantage 标签 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。
+
+**真正上线的是 generalist，而且它是从零训的。** specialist 从预训练模型微调，而最终的 generalist 是在累积起来的混合数据上**从零**训练，并不是从任何一个 specialist 微调过来的 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。这个分工可以读得很直白：specialist 是**用来制造「比你的遥操作员更好的数据」的仪器**，而 generalist 才是产品 [[arXiv:2604.15483 §VI-A]](https://arxiv.org/abs/2604.15483)。
+
+真正值得盯住的是它确实成立的那个证据。在多样化叠衣服和装箱这两项上，generalist 的吞吐**超过**了用 RL 训出来的 specialist——在 specialist 自己的那根轴上把它们打赢了，而它自己从没跑过一次 policy gradient [[arXiv:2604.15483 Fig. 6]](https://arxiv.org/abs/2604.15483)。
+
+**所以，多数团队应该走的那个出口。** 你的 generalist 也许根本不必跑这个闭环，而前沿的那一代也确实没跑：一个模型去跑 RL 并产出 rollout，**下一个**模型把这些 rollout 当作普通的带条件训练样本吸收进来——实验室把这称作一种蒸馏 [[arXiv:2604.15483 §VI-A]](https://arxiv.org/abs/2604.15483)。在划算的地方窄窄地跑 RL，然后让 M1 的飞轮把结果搬进 generalist，全程不需要任何 policy gradient 碰过它 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。
 
 **通过条件。** 相对 M2，吞吐至少 **2x**，失败率至少减半 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。参考平台：两条 **6** 自由度机械臂、平行夹爪、**3** 个相机，任务时长 **5 到 15** 分钟 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。
 
