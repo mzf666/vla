@@ -168,7 +168,7 @@ backbone 固定住，diffusion 多花的算力换来约 0.1 个百分点，代�
 
 ![](slides/s18-recap-loop.zh.png)
 
-一个 670M 的分布式 value model，201 个分箱，稀疏奖励，以及一个以文本形式插在语言输入之后的二值 advantage 指示符 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。每轮都从预训练 checkpoint 微调，绝不从上一轮，否则策略会漂 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。
+一个 670M 的分布式 value model，201 个分箱，稀疏奖励，以及一个以文本形式插在语言输入之后的二值 advantage 指示符 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。每轮的策略都从预训练 checkpoint 微调，绝不从上一轮的策略，否则会漂；critic 则相反，每轮都在全部数据上重拟 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。
 
 M4 是产品结论被兑现的地方：单台算力成本降到 \$3,499、功耗 40 到 130 W，对面是一块 700 W 的数据中心 GPU [computed: EDGE-19 against EDGE-25]。
 

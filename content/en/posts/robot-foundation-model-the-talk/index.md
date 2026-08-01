@@ -168,7 +168,7 @@ There is no cheap verifier and no tractable likelihood, so PPO and AWR both lose
 
 ![](slides/s18-recap-loop.en.png)
 
-A 670M distributional value model over 201 bins, a sparse reward, and a binarized advantage indicator inserted as text after the language input [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759). Each iteration finetunes from the pre-trained checkpoint, never the previous one — otherwise the policy drifts [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759).
+A 670M distributional value model over 201 bins, a sparse reward, and a binarized advantage indicator inserted as text after the language input [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759). Each iteration's policy finetunes from the pre-trained checkpoint, never from the previous iteration's policy, or it drifts; the critic is the opposite and is refit every round on everything collected so far [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759).
 
 M4 is where the product thesis is paid for: per-robot compute drops to \$3,499 at 40 to 130 W, against a datacentre GPU at 700 W [computed: EDGE-19 against EDGE-25].
 
