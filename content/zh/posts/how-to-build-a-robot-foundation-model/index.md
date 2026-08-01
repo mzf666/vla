@@ -541,25 +541,31 @@ $$\hat{A}_t \;=\; V_{\omega}(o_{t+1}) - V_{\omega}(o_t), \qquad z_t \;=\; \mathb
 这个方法有三个子过程——带可选人工纠正的采集、value function 训练、advantage 条件化的策略训练——下面这个循环就是这三步依次排开 [[arXiv:2511.14759 §IV-C, Alg. 1]](https://arxiv.org/abs/2511.14759)：
 
 ```python
-pi = pi_pretrained                                               # k=0 时没有别的可以跑
-D  = seed_demonstrations                                         # 作用域未披露，见下文
-for k in range(K):
-    rollouts = run(pi, task, z="positive", human_intervention=True)   # 约 300 条轨迹
-    label_terminal_outcome(rollouts)                             # 只标成功/失败，不标更细
-    D += rollouts                                                # 失败刻意留着
+def recap(task):                       # 每个任务调用一次；k 索引的是轮次，不是任务
+    pi = pi_pretrained                 # 第 0 轮没有别的可以跑
+    D  = seed_demonstrations           # 作用域未披露，见下文
 
-    omega = fit_value(D_every_task)                              # 多任务：670M，201 个分箱，MC 回报
-    eps = percentile([V(o) for o in D if o.task == task], 30)    # eps_ell，原文明确是逐任务的
-    for (o, o_next) in D:
-        z[o] = "positive" if V(o_next) - V(o) > eps else "negative"
-    for seg in human_interventions(D):
-        z[seg] = "positive"                                      # 专家介入被当作好动作
-    z = randomly_omit(z)                                         # 让推理时还能用 guidance
+    for k in range(K):
+        rollouts = run(pi, task, z="positive", human_intervention=True)  # 约 300 条轨迹
+        label_terminal_outcome(rollouts)          # 只标成功/失败，不标更细
+        D += rollouts                             # 失败刻意留着
 
-    pi = finetune(pi_pretrained, D, condition=z)                 # 从基座重新初始化，绝不从 pi
+        omega = fit_value(D_every_task)           # 多任务：670M，201 个分箱，MC 回报
+        eps = percentile([V(o) for o in D if o.task == task], 30)   # eps_ell，逐任务
+        for (o, o_next) in D:
+            z[o] = "positive" if V(o_next) - V(o) > eps else "negative"
+        for seg in human_interventions(D):
+            z[seg] = "positive"                   # 专家介入被当作好动作
+        z = randomly_omit(z)                      # 让推理时还能用 guidance
+
+        pi = finetune(pi_pretrained, D, condition=z)   # 从基座重新初始化，绝不从 pi
+
+    return pi                          # 一个属于 `task` 的 specialist，仅此而已
 ```
 
-**`pi` 是哪来的，以及它只保留了哪一份工作。** $k = 0$ 时没有「上一轮」，所以采集器就是预训练 checkpoint 本身——除它之外没有别的可以跑 [[arXiv:2511.14759 §IV-C]](https://arxiv.org/abs/2511.14759)。此后，每一轮的产出成为下一轮的采集器，并且是以正指示符为条件去跑的——这就是你向一个条件策略索要它「好的那一半」行为的方式 [[arXiv:2511.14759 §V-B]](https://arxiv.org/abs/2511.14759)。
+**把 `k` 读成轮次，不要读成任务。** `task` 是入参，在整次调用里固定不变，所以一个策略永远只在它刚刚被训过的那个任务上 rollout。想改进第二个任务，那是第二次调用，而它重新从 `pi_pretrained` 起步——两个循环之间从不互相递交策略。它们唯一共享的是 critic，而 critic 是跨全部数据拟合的 [[arXiv:2511.14759 §V-C]](https://arxiv.org/abs/2511.14759)。于是 specialist 之间不可能互相污染，而这一点是从「重新初始化」那条规则里自然掉出来的，并不需要另外安排 [[arXiv:2511.14759 §V-D]](https://arxiv.org/abs/2511.14759)。
+
+**`pi` 是哪来的，以及它只保留了哪一份工作。** $k = 0$ 时没有「上一轮」，所以采集器就是预训练 checkpoint 本身——除它之外没有别的可以跑 [[arXiv:2511.14759 §IV-C]](https://arxiv.org/abs/2511.14759)。此后，每一轮的产出成为下一轮在**同一个任务**上的采集器，并且是以正指示符为条件去跑的——这就是你向一个条件策略索要它「好的那一半」行为的方式 [[arXiv:2511.14759 §V-B]](https://arxiv.org/abs/2511.14759)。
 
 现在看最后那一行**没有**做的事：`pi` 从不出现在 `finetune` 的右边。策略是以**「采数据的那个东西」**的身份被带到下一轮的，而绝不是以「被拿来初始化的那个东西」的身份。这就是「绝不从上一轮出发」的全部内容——它讲的是初始化，不是部署。`pi` 的这两种读法在循环里同时存在，而把它们分开，正是阻止轮次之间层层复利的那件事 [[arXiv:2511.14759 §V-D]](https://arxiv.org/abs/2511.14759)。
 

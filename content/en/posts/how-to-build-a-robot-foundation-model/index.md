@@ -541,25 +541,31 @@ $$\hat{A}_t \;=\; V_{\omega}(o_{t+1}) - V_{\omega}(o_t), \qquad z_t \;=\; \mathb
 The method has three subroutines — collection with optional corrective interventions, value-function training, and advantage-conditioned policy training — and the loop below is those three in sequence [[arXiv:2511.14759 §IV-C, Alg. 1]](https://arxiv.org/abs/2511.14759):
 
 ```python
-pi = pi_pretrained                                               # k=0 has nothing else to roll out
-D  = seed_demonstrations                                         # scope undisclosed; see below
-for k in range(K):
-    rollouts = run(pi, task, z="positive", human_intervention=True)   # about 300 trajectories
-    label_terminal_outcome(rollouts)                             # success / failure, nothing finer
-    D += rollouts                                                # failures kept, on purpose
+def recap(task):                       # ONE call per task; k indexes rounds, not tasks
+    pi = pi_pretrained                 # round 0 has nothing else to roll out
+    D  = seed_demonstrations           # scope undisclosed; see below
 
-    omega = fit_value(D_every_task)                              # multi-task: 670M, 201 bins, MC returns
-    eps = percentile([V(o) for o in D if o.task == task], 30)    # eps_ell, stated per task
-    for (o, o_next) in D:
-        z[o] = "positive" if V(o_next) - V(o) > eps else "negative"
-    for seg in human_interventions(D):
-        z[seg] = "positive"                                      # an expert correction is a good action
-    z = randomly_omit(z)                                         # leaves guidance available at inference
+    for k in range(K):
+        rollouts = run(pi, task, z="positive", human_intervention=True)  # ~300 trajectories
+        label_terminal_outcome(rollouts)          # success / failure, nothing finer
+        D += rollouts                             # failures kept, on purpose
 
-    pi = finetune(pi_pretrained, D, condition=z)                 # re-init from the BASE, never from pi
+        omega = fit_value(D_every_task)           # multi-task: 670M, 201 bins, MC returns
+        eps = percentile([V(o) for o in D if o.task == task], 30)   # eps_ell, per task
+        for (o, o_next) in D:
+            z[o] = "positive" if V(o_next) - V(o) > eps else "negative"
+        for seg in human_interventions(D):
+            z[seg] = "positive"                   # an expert correction is a good action
+        z = randomly_omit(z)                      # leaves guidance available at inference
+
+        pi = finetune(pi_pretrained, D, condition=z)   # re-init from the BASE, never from pi
+
+    return pi                          # a specialist for `task`, and nothing else
 ```
 
-**Where `pi` comes from, and the one job it keeps.** At $k = 0$ there is no previous iteration, so the collector is the pre-trained checkpoint itself; there is nothing else to roll out [[arXiv:2511.14759 §IV-C]](https://arxiv.org/abs/2511.14759). After that, each round's output becomes the next round's collector, and it is run conditioned on the positive indicator, which is how you ask a conditional policy for its good behavior [[arXiv:2511.14759 §V-B]](https://arxiv.org/abs/2511.14759).
+**Read `k` as a round, not as a task.** `task` is the argument, fixed for the whole call, so a policy only ever rolls out on the task it was just trained on. Improving a second task means a second call, which starts again from `pi_pretrained` — the two loops never hand a policy to each other. The only thing they share is the critic, which is fitted across everything [[arXiv:2511.14759 §V-C]](https://arxiv.org/abs/2511.14759). Specialists therefore cannot contaminate one another, and that falls out of the re-initialization rule rather than being arranged separately [[arXiv:2511.14759 §V-D]](https://arxiv.org/abs/2511.14759).
+
+**Where `pi` comes from, and the one job it keeps.** At $k = 0$ there is no previous round, so the collector is the pre-trained checkpoint itself; there is nothing else to roll out [[arXiv:2511.14759 §IV-C]](https://arxiv.org/abs/2511.14759). After that, each round's output becomes the next round's collector on that same task, run conditioned on the positive indicator, which is how you ask a conditional policy for its good behavior [[arXiv:2511.14759 §V-B]](https://arxiv.org/abs/2511.14759).
 
 Now look at what the last line does *not* do: `pi` never appears on the right-hand side of `finetune`. The policy carries forward as **the thing that gathers data**, and never as the thing that gets initialized from. That is the entire content of "never from the previous iteration" — a statement about initialization, not about deployment. Both readings of `pi` are in the loop simultaneously, and keeping them apart is what stops the rounds from compounding [[arXiv:2511.14759 §V-D]](https://arxiv.org/abs/2511.14759).
 
