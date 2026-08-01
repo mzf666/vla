@@ -538,22 +538,32 @@ $$\hat{A}_t \;=\; V_{\omega}(o_{t+1}) - V_{\omega}(o_t), \qquad z_t \;=\; \mathb
 
 ![The RL iteration](figures/f18-recap-iteration.png)
 
+Two scopes run at different widths in the loop below, and conflating them is the fastest way to misread it. The **critic is multi-task**: one value model, fitted on everything ever collected, across every task [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759). The **collection and the policy update are per task**: the loop is entered once for each task you are trying to improve, and its data budget is quoted per task [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759).
+
 ```python
-D = demonstrations
+# Entered once per task. The critic is shared across tasks; D is not.
+D = demonstrations_for(task)
 for k in range(K):
-    rollouts = run(pi_k, tasks, allow_human_intervention=True)   # about 300 trajectories
+    rollouts = run(pi_k, task, allow_human_intervention=True)    # about 300 trajectories
     label_terminal_outcome(rollouts)                             # success / failure, nothing finer
     D += rollouts                                                # failures kept, on purpose
 
-    omega = fit_value(D)                                         # 670M, 201 bins, MC returns
+    omega = fit_value(D_every_task)                              # 670M, 201 bins, MC returns
+    eps = percentile([V(o) for o in D], 30)                      # ...but the bar is this task's
     for (o, o_next) in D:
-        z[o] = "positive" if V(o_next) - V(o) > eps[task(o)] else "negative"
+        z[o] = "positive" if V(o_next) - V(o) > eps else "negative"
     for seg in human_interventions(D):
         z[seg] = "positive"                                      # an expert correction is a good action
     z = randomly_omit(z)                                         # leaves guidance available at inference
 
     pi_next = finetune(pi_pretrained, D, condition=z)            # NOT from pi_k
 ```
+
+That is what makes the output a specialist: not a filtering step inside the algorithm, but the fact that `D` was scoped to one task before the loop started. The critic can afford to be global because its job is to score states; the policy update is local because its job is to get *this* task working [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759).
+
+The per-task budgets are quoted that way in the source, which is corroboration rather than inference: about 300 trajectories per iteration for laundry, and 600 autonomous plus 360 intervention trials for box assembly [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759). Two different tasks, two different budgets, one loop each.
+
+One thing to be honest about, because it changes how you would implement this: whether a specialist's finetune sees *only* its own task's data or the full mixture with that task emphasized is not disclosed [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759). The pseudocode above takes the narrow reading, which is the one the per-task budgets suggest.
 
 Two disciplines make it converge rather than drift. The threshold is a percentile of the critic's own predictions for that task, so it tracks a moving policy instead of a fixed bar [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759). And **the policy of each iteration is finetuned from the pre-trained checkpoint, never from the previous iteration's policy** — the line in the algorithm above that looks like a typo and is not [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759). Round five's weights start where round one's did; what accumulates across rounds is the dataset and its labels, not the parameters. That is the reversible arrangement: a bad round can be dropped from the mixture and retrained, where a bad fine-tune of a fine-tune cannot be undone [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759).
 
@@ -644,6 +654,8 @@ The things nobody outside a lab knows, collected in one place. Each is a contrib
 | cross-unit manufacturing variance | named, never quantified [[arXiv:2506.18123]](https://arxiv.org/abs/2506.18123) |
 | photon-to-torque latency, any platform | undisclosed [[repo: openpi websocket_policy_server.py]](https://github.com/Physical-Intelligence/openpi/blob/main/src/openpi/serving/websocket_policy_server.py) |
 | generalization sweeps over friction, payload and stiffness | published by no lab [[arXiv:2604.15483]](https://arxiv.org/abs/2604.15483) |
+| the weight between the cross-entropy and flow-matching losses | undisclosed [[arXiv:2604.15483 §III]](https://arxiv.org/abs/2604.15483) |
+| which slice of the corpus an RL specialist's finetune sees | undisclosed [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759) |
 | onboard compute vendor, watts and TOPS, for commercial humanoids | undisclosed [[blog: Figure Helix]](https://www.figure.ai/news/helix) |
 
 ## Where this leaves us
