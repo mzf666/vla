@@ -541,9 +541,10 @@ $$\hat{A}_t \;=\; V_{\omega}(o_{t+1}) - V_{\omega}(o_t), \qquad z_t \;=\; \mathb
 这个方法有三个子过程——带可选人工纠正的采集、value function 训练、advantage 条件化的策略训练——下面这个循环就是这三步依次排开 [[arXiv:2511.14759 §IV-C, Alg. 1]](https://arxiv.org/abs/2511.14759)：
 
 ```python
-D = seed_demonstrations                                          # 作用域未披露，见下文
+pi = pi_pretrained                                               # k=0 时没有别的可以跑
+D  = seed_demonstrations                                         # 作用域未披露，见下文
 for k in range(K):
-    rollouts = run(pi_k, task, allow_human_intervention=True)    # 约 300 条轨迹
+    rollouts = run(pi, task, z="positive", human_intervention=True)   # 约 300 条轨迹
     label_terminal_outcome(rollouts)                             # 只标成功/失败，不标更细
     D += rollouts                                                # 失败刻意留着
 
@@ -555,8 +556,12 @@ for k in range(K):
         z[seg] = "positive"                                      # 专家介入被当作好动作
     z = randomly_omit(z)                                         # 让推理时还能用 guidance
 
-    pi_next = finetune(pi_pretrained, D, condition=z)            # 不是从 pi_k 出发
+    pi = finetune(pi_pretrained, D, condition=z)                 # 从基座重新初始化，绝不从 pi
 ```
+
+**`pi` 是哪来的，以及它只保留了哪一份工作。** $k = 0$ 时没有「上一轮」，所以采集器就是预训练 checkpoint 本身——除它之外没有别的可以跑 [[arXiv:2511.14759 §IV-C]](https://arxiv.org/abs/2511.14759)。此后，每一轮的产出成为下一轮的采集器，并且是以正指示符为条件去跑的——这就是你向一个条件策略索要它「好的那一半」行为的方式 [[arXiv:2511.14759 §V-B]](https://arxiv.org/abs/2511.14759)。
+
+现在看最后那一行**没有**做的事：`pi` 从不出现在 `finetune` 的右边。策略是以**「采数据的那个东西」**的身份被带到下一轮的，而绝不是以「被拿来初始化的那个东西」的身份。这就是「绝不从上一轮出发」的全部内容——它讲的是初始化，不是部署。`pi` 的这两种读法在循环里同时存在，而把它们分开，正是阻止轮次之间层层复利的那件事 [[arXiv:2511.14759 §V-D]](https://arxiv.org/abs/2511.14759)。
 
 这里有两个宽度不同的作用域，把它们混在一起是最快的误读方式。而恰恰就在这个分界上，原文不再说得那么明确，所以值得把「它说了什么」和「本文替它读出了什么」分开摆。
 
@@ -588,7 +593,7 @@ critic 恰好相反，而算法里那两行很容易被读成自相矛盾，直�
 
 ### 这个闭环产出什么，以及最后上线的到底是哪个模型
 
-上面那段算法自己回答不了的问题：`pi_next` **不是**你交付出去的那个模型。这个闭环是**逐任务**跑的，它每一轮产出的是一个 **specialist**——只管一个难任务，从预训练 checkpoint 微调而来，并以 advantage 指示符为条件 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。
+上面那段算法自己回答不了的问题：最后一轮活下来的那个 `pi`，**不是**你交付出去的那个模型。这个闭环是**逐任务**跑的，它每一轮产出的是一个 **specialist**——只管一个难任务，从预训练 checkpoint 微调而来，并以 advantage 指示符为条件 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。
 
 这个 specialist 恰好只有两份工作，这也正是图里那根箭头为什么绕回第一步、而不是从这里退出 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)：
 

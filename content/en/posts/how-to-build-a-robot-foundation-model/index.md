@@ -541,9 +541,10 @@ $$\hat{A}_t \;=\; V_{\omega}(o_{t+1}) - V_{\omega}(o_t), \qquad z_t \;=\; \mathb
 The method has three subroutines — collection with optional corrective interventions, value-function training, and advantage-conditioned policy training — and the loop below is those three in sequence [[arXiv:2511.14759 §IV-C, Alg. 1]](https://arxiv.org/abs/2511.14759):
 
 ```python
-D = seed_demonstrations                                          # scope undisclosed; see below
+pi = pi_pretrained                                               # k=0 has nothing else to roll out
+D  = seed_demonstrations                                         # scope undisclosed; see below
 for k in range(K):
-    rollouts = run(pi_k, task, allow_human_intervention=True)    # about 300 trajectories
+    rollouts = run(pi, task, z="positive", human_intervention=True)   # about 300 trajectories
     label_terminal_outcome(rollouts)                             # success / failure, nothing finer
     D += rollouts                                                # failures kept, on purpose
 
@@ -555,8 +556,12 @@ for k in range(K):
         z[seg] = "positive"                                      # an expert correction is a good action
     z = randomly_omit(z)                                         # leaves guidance available at inference
 
-    pi_next = finetune(pi_pretrained, D, condition=z)            # NOT from pi_k
+    pi = finetune(pi_pretrained, D, condition=z)                 # re-init from the BASE, never from pi
 ```
+
+**Where `pi` comes from, and the one job it keeps.** At $k = 0$ there is no previous iteration, so the collector is the pre-trained checkpoint itself; there is nothing else to roll out [[arXiv:2511.14759 §IV-C]](https://arxiv.org/abs/2511.14759). After that, each round's output becomes the next round's collector, and it is run conditioned on the positive indicator, which is how you ask a conditional policy for its good behavior [[arXiv:2511.14759 §V-B]](https://arxiv.org/abs/2511.14759).
+
+Now look at what the last line does *not* do: `pi` never appears on the right-hand side of `finetune`. The policy carries forward as **the thing that gathers data**, and never as the thing that gets initialized from. That is the entire content of "never from the previous iteration" — a statement about initialization, not about deployment. Both readings of `pi` are in the loop simultaneously, and keeping them apart is what stops the rounds from compounding [[arXiv:2511.14759 §V-D]](https://arxiv.org/abs/2511.14759).
 
 Two scopes run at different widths here, and conflating them is the fastest way to misread the algorithm. Because that distinction is also where the source stops being explicit, it is worth separating what is stated from what this post is reading into it.
 
@@ -588,7 +593,7 @@ The critic is the opposite case, and the two lines in the algorithm are easy to 
 
 ### What the loop produces, and which model you actually ship
 
-The question the algorithm above does not answer on its own: `pi_next` is *not* the thing you deploy to customers. The loop runs **per task**, and what it produces each round is a **specialist** — one hard task, finetuned from the pre-trained checkpoint, conditioned on the advantage indicator [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759).
+The question the algorithm above does not answer on its own: the `pi` that survives the last round is *not* the thing you deploy to customers. The loop runs **per task**, and what it produces each round is a **specialist** — one hard task, finetuned from the pre-trained checkpoint, conditioned on the advantage indicator [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759).
 
 That specialist has exactly two jobs, which is why the arrow in the figure returns to step one rather than exiting [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759):
 
