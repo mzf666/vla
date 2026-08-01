@@ -538,18 +538,17 @@ $$\hat{A}_t \;=\; V_{\omega}(o_{t+1}) - V_{\omega}(o_t), \qquad z_t \;=\; \mathb
 
 ![RL 迭代](figures/f18-recap-iteration.png)
 
-下面这个循环里有两个宽度不同的作用域，把它们混在一起是最快的误读方式。**critic 是多任务的**：一个 value model，拟合在「迄今为止收集到的全部数据」上，跨所有任务 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。而**采集和策略更新是逐任务的**：你想改进哪个任务，就为它进入一次这个循环，而它的数据预算也是按任务报的 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。
+这个方法有三个子过程——带可选人工纠正的采集、value function 训练、advantage 条件化的策略训练——下面这个循环就是这三步依次排开 [[arXiv:2511.14759 §IV-C, Alg. 1]](https://arxiv.org/abs/2511.14759)：
 
 ```python
-# 每个任务进入一次。critic 跨任务共享；D 不共享。
-D = demonstrations_for(task)
+D = seed_demonstrations                                          # 作用域未披露，见下文
 for k in range(K):
     rollouts = run(pi_k, task, allow_human_intervention=True)    # 约 300 条轨迹
     label_terminal_outcome(rollouts)                             # 只标成功/失败，不标更细
     D += rollouts                                                # 失败刻意留着
 
-    omega = fit_value(D_every_task)                              # 670M，201 个分箱，MC 回报
-    eps = percentile([V(o) for o in D], 30)                      # ……但这根横杆是本任务自己的
+    omega = fit_value(D_every_task)                              # 多任务：670M，201 个分箱，MC 回报
+    eps = percentile([V(o) for o in D if o.task == task], 30)    # eps_ell，原文明确是逐任务的
     for (o, o_next) in D:
         z[o] = "positive" if V(o_next) - V(o) > eps else "negative"
     for seg in human_interventions(D):
@@ -559,11 +558,15 @@ for k in range(K):
     pi_next = finetune(pi_pretrained, D, condition=z)            # 不是从 pi_k 出发
 ```
 
-产出之所以是 specialist，靠的不是算法内部有什么筛选步骤，而是 `D` 在进入循环之前就已经被限定到了一个任务上。critic 之所以敢做全局的，是因为它的职责是给状态打分；策略更新之所以是局部的，是因为它的职责是把**这一个**任务干成 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。
+这里有两个宽度不同的作用域，把它们混在一起是最快的误读方式。而恰恰就在这个分界上，原文不再说得那么明确，所以值得把「它说了什么」和「本文替它读出了什么」分开摆。
 
-那些逐任务的预算在原文里就是按任务报的，这算是佐证而不是我的推断：叠衣服每轮约 300 条轨迹，装箱则是 600 次自主试验加 360 次介入试验 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。两个不同的任务，两份不同的预算，各跑一个循环。
+**原文说了，而且是逐任务的。** 改进阈值 $\varepsilon_{\ell}$ 是 critic 对**任务** $\ell$ 所预测的那些值的第 30 百分位 [[arXiv:2511.14759 §V-D]](https://arxiv.org/abs/2511.14759)。value 按任务用最大 episode 长度归一 [[arXiv:2511.14759 §V-C]](https://arxiv.org/abs/2511.14759)。specialist 作为一个类别是存在的，并且从预训练模型微调而来，而最终的 generalist 从零训练 [[arXiv:2511.14759 §IV-C]](https://arxiv.org/abs/2511.14759)。采集预算也是按任务报的：叠衣服每轮约 300 条轨迹，装箱则是 600 次自主试验加 360 次介入试验 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。
 
-有一点必须说实话，因为它会改变你的实现方式：specialist 微调时到底**只**看它自己那个任务的数据，还是看整份混合、只是加重了这个任务，原文没有公开 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。上面这段伪代码取的是窄的那个读法，也就是那些逐任务预算所暗示的读法。
+**原文说了，但是全局的。** critic 是一个跨任务的 value function，拟合在迄今为止收集到的全部数据上 [[arXiv:2511.14759 §V-C]](https://arxiv.org/abs/2511.14759)。而预训练 checkpoint 背后的那份演示语料，是横跨众多任务、多种机器人的数万小时——那是一份**语料**，不是某个任务的种子集 [[arXiv:2511.14759 §IV-C]](https://arxiv.org/abs/2511.14759)。
+
+**原文没说。** specialist 微调时究竟从那份语料里取哪一片。论文给了循环，也给了逐任务的阈值，但没有给数据作用域——这正是上面第一行写成 `seed_demonstrations` 而不是写成某个像 API 的东西的原因。本文取的是窄的那个读法（只看这一个任务的数据），因为逐任务的预算和逐任务的阈值都指向它；而这个读法被放进 gap 清单，而不是被当成配方端上来 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。
+
+所以，产出之所以是 specialist，靠的并不是算法内部有什么筛选步骤——那里根本没有。靠的是 `D` 和采集的作用域，在循环开始之前就已经定好了。critic 之所以敢做全局的，是因为它的职责是给状态打分；策略更新之所以是局部的，是因为它的职责是把**这一个**任务干成 [[arXiv:2511.14759 §IV-C]](https://arxiv.org/abs/2511.14759)。
 
 有两条纪律让它收敛而不是漂走。阈值取的是 critic 对该任务自身预测的百分位，所以它跟着一个在动的策略走，而不是钉在一根固定的横杆上 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。以及**每一轮的策略都从预训练 checkpoint 微调，绝不从上一轮的策略出发**——上面算法里那行看着像笔误、其实不是的语句 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。第五轮的权重跟第一轮起点相同；跨轮累积的是数据集和它的标签，不是参数。这才是可逆的安排：某一轮采砸了，把它的轨迹从混合里撤掉重训就行，而「微调之上再微调」出来的坏结果撤不回去 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。
 

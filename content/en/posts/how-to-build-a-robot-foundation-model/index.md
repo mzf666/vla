@@ -538,18 +538,17 @@ $$\hat{A}_t \;=\; V_{\omega}(o_{t+1}) - V_{\omega}(o_t), \qquad z_t \;=\; \mathb
 
 ![The RL iteration](figures/f18-recap-iteration.png)
 
-Two scopes run at different widths in the loop below, and conflating them is the fastest way to misread it. The **critic is multi-task**: one value model, fitted on everything ever collected, across every task [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759). The **collection and the policy update are per task**: the loop is entered once for each task you are trying to improve, and its data budget is quoted per task [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759).
+The method has three subroutines — collection with optional corrective interventions, value-function training, and advantage-conditioned policy training — and the loop below is those three in sequence [[arXiv:2511.14759 §IV-C, Alg. 1]](https://arxiv.org/abs/2511.14759):
 
 ```python
-# Entered once per task. The critic is shared across tasks; D is not.
-D = demonstrations_for(task)
+D = seed_demonstrations                                          # scope undisclosed; see below
 for k in range(K):
     rollouts = run(pi_k, task, allow_human_intervention=True)    # about 300 trajectories
     label_terminal_outcome(rollouts)                             # success / failure, nothing finer
     D += rollouts                                                # failures kept, on purpose
 
-    omega = fit_value(D_every_task)                              # 670M, 201 bins, MC returns
-    eps = percentile([V(o) for o in D], 30)                      # ...but the bar is this task's
+    omega = fit_value(D_every_task)                              # multi-task: 670M, 201 bins, MC returns
+    eps = percentile([V(o) for o in D if o.task == task], 30)    # eps_ell, stated per task
     for (o, o_next) in D:
         z[o] = "positive" if V(o_next) - V(o) > eps else "negative"
     for seg in human_interventions(D):
@@ -559,11 +558,15 @@ for k in range(K):
     pi_next = finetune(pi_pretrained, D, condition=z)            # NOT from pi_k
 ```
 
-That is what makes the output a specialist: not a filtering step inside the algorithm, but the fact that `D` was scoped to one task before the loop started. The critic can afford to be global because its job is to score states; the policy update is local because its job is to get *this* task working [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759).
+Two scopes run at different widths here, and conflating them is the fastest way to misread the algorithm. Because that distinction is also where the source stops being explicit, it is worth separating what is stated from what this post is reading into it.
 
-The per-task budgets are quoted that way in the source, which is corroboration rather than inference: about 300 trajectories per iteration for laundry, and 600 autonomous plus 360 intervention trials for box assembly [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759). Two different tasks, two different budgets, one loop each.
+**Stated, and per task.** The improvement threshold $\varepsilon_{\ell}$ is the 30th percentile of the values the critic predicts *for task* $\ell$ [[arXiv:2511.14759 §V-D]](https://arxiv.org/abs/2511.14759). Values are normalized per task by maximum episode length [[arXiv:2511.14759 §V-C]](https://arxiv.org/abs/2511.14759). Specialists exist as a category and are finetuned from the pre-trained model, while the final generalist is trained from scratch [[arXiv:2511.14759 §IV-C]](https://arxiv.org/abs/2511.14759). And the collection budgets are quoted per task: about 300 trajectories per iteration for laundry, 600 autonomous plus 360 intervention trials for box assembly [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759).
 
-One thing to be honest about, because it changes how you would implement this: whether a specialist's finetune sees *only* its own task's data or the full mixture with that task emphasized is not disclosed [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759). The pseudocode above takes the narrow reading, which is the one the per-task budgets suggest.
+**Stated, and global.** The critic is a single multi-task value function over everything collected so far [[arXiv:2511.14759 §V-C]](https://arxiv.org/abs/2511.14759). The demonstration corpus behind the pre-trained checkpoint is tens of thousands of hours across numerous tasks and many robots — a corpus, not a per-task seed set [[arXiv:2511.14759 §IV-C]](https://arxiv.org/abs/2511.14759).
+
+**Not stated.** Which slice of that corpus a specialist's finetune actually sees. The paper gives the loop and the per-task threshold; it does not give the dataset scope, which is why the first line above is `seed_demonstrations` rather than something that looks like an API. This post reads it narrowly — one task's data — because the per-task budgets and the per-task threshold both point that way, and that reading is in the gap ledger rather than presented as the recipe [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759).
+
+So what makes the output a specialist is not a filtering step inside the algorithm; there is none. It is the scope of `D` and of the collection, decided before the loop starts. The critic can afford to be global because its job is to score states; the policy update is local because its job is to get *this* task working [[arXiv:2511.14759 §IV-C]](https://arxiv.org/abs/2511.14759).
 
 Two disciplines make it converge rather than drift. The threshold is a percentile of the critic's own predictions for that task, so it tracks a moving policy instead of a fixed bar [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759). And **the policy of each iteration is finetuned from the pre-trained checkpoint, never from the previous iteration's policy** — the line in the algorithm above that looks like a typo and is not [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759). Round five's weights start where round one's did; what accumulates across rounds is the dataset and its labels, not the parameters. That is the reversible arrangement: a bad round can be dropped from the mixture and retrained, where a bad fine-tune of a fine-tune cannot be undone [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759).
 
