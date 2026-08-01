@@ -150,6 +150,10 @@ About 5B on the control path: a 400M vision encoder and a 4B backbone carrying i
 
 The part to copy is the firewall: gradients from the action expert do not flow back into the backbone [[arXiv:2604.15483 §III]](https://arxiv.org/abs/2604.15483). FAST tokens exist only at training time and never attend to the flow actions [[arXiv:2604.15483 App. B]](https://arxiv.org/abs/2604.15483).
 
+![](figures/f17-dual-objective.png)
+
+One step, two losses, two parameter groups. Cross-entropy on FAST tokens trains the backbone; flow matching trains the expert against the velocity that carries noise to actions [[arXiv:2410.24164]](https://arxiv.org/abs/2410.24164). `stop_gradient` is the only coupling, and the relative weight of the two losses is the one number nobody has published [[arXiv:2604.15483 §III]](https://arxiv.org/abs/2604.15483).
+
 ![](slides/s17-training-schedule.en.png)
 
 History dropped at p = 0.3, metadata at 15% and 5%, subgoals in 25% of the batch [[arXiv:2604.15483 §V-E]](https://arxiv.org/abs/2604.15483). These are not regularization — they are what stops the policy binding to a fixed camera rig [[arXiv:2409.03403]](https://arxiv.org/abs/2409.03403).
@@ -157,6 +161,10 @@ History dropped at p = 0.3, metadata at 15% and 5%, subgoals in 25% of the batch
 ![](figures/b01-f10-runtime-timeline.png)
 
 Before compressing anything, fix the schedule: three threads and nothing waits, so a 1.25 s world-model call is invisible instead of fatal [[arXiv:2604.15483 §VII]](https://arxiv.org/abs/2604.15483).
+
+![](figures/f18-recap-iteration.png)
+
+There is no cheap verifier and no tractable likelihood, so PPO and AWR both lose to conditioning [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759). Fit a critic, binarize its one-step difference against the 30th percentile for that task, write the result into the prompt as text, and train supervised on everything — failures included [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759).
 
 ![](slides/s18-recap-loop.en.png)
 

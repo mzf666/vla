@@ -397,27 +397,167 @@ History is six observations at a **1** second stride [[arXiv:2603.03596]](https:
 
 ## M3 — pretrain, post-train, then RL
 
+This is the milestone a hardware team hands to a learning team, so it is written as an algorithm rather than as a plan: what the objects are, what is being maximized, what one training step does line by line, and what happens at inference [[arXiv:2604.15483 §III]](https://arxiv.org/abs/2604.15483).
+
+### Notation, fixed once
+
+| symbol | what it is | instantiated as |
+|---|---|---|
+| $o_t$ | observation at time $t$ | up to 4 images at 448×448 plus the joint configuration [[arXiv:2604.15483 §IV]](https://arxiv.org/abs/2604.15483) |
+| $o_{t-T:t}$ | observation history | 6 frames at a 1 s stride [[arXiv:2603.03596]](https://arxiv.org/abs/2603.03596) |
+| $C_t$ | context | subtask string, speed, quality, mistake, control mode, optional subgoal images [[arXiv:2604.15483 §V-C]](https://arxiv.org/abs/2604.15483) |
+| $A_t = a_{t:t+H}$ | action chunk | $H = 50$ future joint targets [[arXiv:2604.15483 §IV]](https://arxiv.org/abs/2604.15483) |
+| $\tilde{H}$ | executed prefix | 15 or 25 of the 50 before re-planning [[arXiv:2604.15483 §VII]](https://arxiv.org/abs/2604.15483) |
+| $\theta$ | backbone parameters | 400M vision encoder inside a 4B Gemma-3 [[arXiv:2604.15483 §IV]](https://arxiv.org/abs/2604.15483) |
+| $\phi$ | action-expert parameters | 860M flow-matching transformer [[arXiv:2604.15483 §IV]](https://arxiv.org/abs/2604.15483) |
+| $\omega$ | value-model parameters | 670M, and only during RL [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759) |
+
+The whole pipeline maximizes one quantity, and every stage below is a different way of getting at it [[arXiv:2604.15483 §III]](https://arxiv.org/abs/2604.15483):
+
+$$\max_{\theta,\,\phi}\ \ \mathbb{E}_{(o,\,C,\,A)\sim\mathcal{D}}\Big[\log \pi_{\theta,\phi}\big(A_t \mid o_{t-T:t},\ C_t\big)\Big]$$
+
+One caveat to carry through the rest of this part, because it is what breaks the LLM analogy at stage three: the flow-matching expert optimizes an approximate bound on that log-likelihood rather than the quantity itself, so there is no tractable likelihood to differentiate later [[arXiv:2604.15483 §III]](https://arxiv.org/abs/2604.15483).
+
+### Two objectives, one firewall
+
+![One training step, two objectives, one firewall](figures/f17-dual-objective.png)
+
+> **Primer — flow matching.** A flow-matching model learns a velocity field that transports a noise sample to a data sample along a path indexed by a flow time. Training regresses that velocity at random points on the path; sampling integrates it. It is the continuous-action analogue of diffusion, with a straighter path and therefore fewer integration steps.
+
+**The discrete branch trains $\theta$.** FAST compresses the chunk with a discrete cosine transform, quantizes it, and byte-pair-encodes the result into tokens the language model already has, so the action objective speaks the backbone's native language [[arXiv:2501.09747]](https://arxiv.org/abs/2501.09747):
+
+$$y = \mathrm{BPE}\big(\mathrm{quant}(\mathrm{DCT}(A_t))\big),\qquad \mathcal{L}_{\mathrm{CE}}(\theta) \;=\; -\sum_{k}\log p_{\theta}\big(y_k \mid y_{\lt k},\ h_{\theta}(o_{t-T:t}, C_t)\big)$$
+
+That is ordinary next-token cross-entropy against the loss the backbone was pretrained on, which is the entire reason it does not forget what a colander is [[arXiv:2604.15483 §III]](https://arxiv.org/abs/2604.15483).
+
+**The continuous branch trains $\phi$.** Draw noise $\epsilon \sim \mathcal{N}(0, I)$ and a flow time $\tau$ weighted toward the noisy end of the path, interpolate, and regress the velocity that carries noise to actions [[arXiv:2410.24164]](https://arxiv.org/abs/2410.24164):
+
+$$A^{\tau} = \tau A_t + (1-\tau)\,\epsilon, \qquad \mathcal{L}_{\mathrm{FM}}(\phi) \;=\; \mathbb{E}_{\tau,\,\epsilon}\Big\|\,v_{\phi}\big(A^{\tau},\ \tau,\ \mathrm{sg}[\,h_{\theta}\,]\big) \;-\; (A_t - \epsilon)\,\Big\|^{2}$$
+
+Signs here follow the convention where $\tau = 0$ is noise and $\tau = 1$ is the action chunk; the published statement uses the opposite orientation and is otherwise identical [[arXiv:2410.24164]](https://arxiv.org/abs/2410.24164).
+
+**The coupling is one operator.** $\mathrm{sg}[\cdot]$ is the stop-gradient, and it is the whole firewall: the expert reads every backbone activation and modifies none of them [[arXiv:2604.15483 §III]](https://arxiv.org/abs/2604.15483). The total loss is $\mathcal{L}_{\mathrm{CE}} + \lambda\,\mathcal{L}_{\mathrm{FM}}$, and $\lambda$ is the one number in this section nobody has published — it goes in the gap ledger rather than into a confident sentence [[arXiv:2604.15483 §III]](https://arxiv.org/abs/2604.15483).
+
+### One training step, line by line
+
+```python
+for o, C, A in mixture:                      # M1's flywheel, resampled every batch
+    C = drop_fields(C)                       # rates in stage two; makes every field optional
+    h = backbone(o, C)                       # theta: 400M SigLIP + MEM history + 4B Gemma-3
+
+    # discrete branch -- trains theta, in the language the backbone already speaks
+    y = fast_tokenize(A)                     # DCT -> quantize -> BPE
+    loss_ce = cross_entropy(fast_head(h), y)
+
+    # continuous branch -- trains phi, and only phi
+    tau = sample_flow_time()                 # weighted toward the noisy end
+    eps = randn_like(A)
+    A_tau = tau * A + (1 - tau) * eps
+    v = action_expert(A_tau, tau, stop_gradient(h))     # <-- the firewall, one call
+    loss_fm = mse(v, A - eps)
+
+    (loss_ce + lam * loss_fm).backward()
+    opt.step()
+```
+
+Two lines carry the design. `stop_gradient(h)` is knowledge insulation, and deleting it is the single most expensive one-character change available to you — the high-variance regression gradient reaches the backbone and erases the web semantics you attached it for [[arXiv:2604.15483 §III]](https://arxiv.org/abs/2604.15483). And `fast_head(h)` *without* a stop-gradient is what keeps the backbone learning about actions at all; remove that instead and you have a frozen VLM with a policy bolted on [[arXiv:2501.09747]](https://arxiv.org/abs/2501.09747).
+
+The attention mask is the third control, and it is a correctness requirement rather than an optimization: the FAST tokens *are* the quantized answer, so an expert able to attend to them would learn to copy rather than to look, and would collapse at deployment where they do not exist [[arXiv:2604.15483 App. B]](https://arxiv.org/abs/2604.15483).
+
+### Inference, line by line
+
+```python
+h  = backbone(o, C_runtime)         # quality=5, mistake=false, speed=15th percentile
+kv = cache(h)                       # actions attend the prefix; the prefix never attends back
+
+A = randn(50, action_dim)           # tau = 0: pure noise
+for i in range(5):                  # delta = 1/5, forward Euler
+    A = A + (1 / 5) * action_expert(A, i / 5, kv)
+
+execute(A[:25])                     # or A[:15]; then re-observe and repeat
+```
+
+The prefix is encoded once and reused across all 5 denoising steps, which is a direct dividend of the mask: because the prefix does not attend to the action tokens, nothing in it changes as they are refined [[arXiv:2604.15483 §VII]](https://arxiv.org/abs/2604.15483). One masking decision buys both correctness and roughly the cost of the pass.
+
+The metadata fields are now knobs rather than annotations, and guidance sharpens them [[arXiv:2604.15483 §VII]](https://arxiv.org/abs/2604.15483):
+
+$$v \;=\; v_{\phi}(\,\cdot \mid \varnothing\,) \;+\; w\,\big(v_{\phi}(\,\cdot \mid C\,) - v_{\phi}(\,\cdot \mid \varnothing\,)\big),\qquad w \in \{1.3,\ 1.7,\ 2.2\}$$
+
+Naively that is two forward passes. It is implemented as one, by packing the conditioned and unconditioned branches into the same sequence as an attention tree whose branches do not attend to each other [[arXiv:2604.15483 App. B]](https://arxiv.org/abs/2604.15483).
+
 ### Stage one — pretraining
 
-One generalist over every robot and task in the mixture, initialized from the VLM checkpoint. The point of this stage is the shared representation that makes M5's second embodiment cheap [[arXiv:2408.11812]](https://arxiv.org/abs/2408.11812).
+One generalist over every robot and every task in the mixture, initialized from the vision-language checkpoint and trained with both objectives above [[arXiv:2604.15483 §III]](https://arxiv.org/abs/2604.15483). Nothing here is task-specific and nothing is embodiment-specific: the action space is padded to a common width so that heterogeneous robots share one head, which is blocker one showing up as an implementation detail [[arXiv:2410.24164]](https://arxiv.org/abs/2410.24164).
+
+The point of the stage is the shared representation that makes M5's second embodiment cheap, and the ablation from Part 1 is what justifies paying for it at all — strip web pretraining and generalization goes to 1% [[arXiv:2310.08864 Table II]](https://arxiv.org/abs/2310.08864).
 
 ### Stage two — post-training
 
-Every number here is a disclosed hyperparameter rather than a suggestion. Drop the entire history with **p = 0.3** and the rear view with **p = 0.3** [[arXiv:2604.15483 §VI-B]](https://arxiv.org/abs/2604.15483). Drop episode metadata entirely **15%** of the time and each component a further **5%** [[arXiv:2604.15483 §V-E]](https://arxiv.org/abs/2604.15483). Carry subgoal images in **25%** of the batch, and within those examples drop the subtask instruction **30%** of the time [[arXiv:2604.15483 §V-E]](https://arxiv.org/abs/2604.15483). Sample real subgoals as **p = 0.25** end-of-segment and **p = 0.75** uniform up to **4** seconds ahead [[arXiv:2604.15483 §VI-C]](https://arxiv.org/abs/2604.15483).
+This stage is where the model is taught that its own context is unreliable [[arXiv:2604.15483 §V-E]](https://arxiv.org/abs/2604.15483). Formally, the context is corrupted before every forward pass,
 
-Dropout is the mechanism that makes every field *optional* at test time: the model must stay competent when a field is missing, which is what lets you omit the subtask string, or the metadata, or the history, and still get a policy [[arXiv:2604.15483 §V-E]](https://arxiv.org/abs/2604.15483).
+$$\tilde{C} = D_{\rho}(C), \qquad \Pr[\,\text{field } j \text{ survives}\,] = 1 - \rho_j$$
 
-Two rates deserve explanation. The subgoal share is capped at a quarter because with subgoals present the objective degenerates toward inverse dynamics and trains much faster — left uncapped, the model learns to read the subgoal instead of the scene [[arXiv:2604.15483 §V-E]](https://arxiv.org/abs/2604.15483). And the dropout rates are not regularization in the usual sense: they are what stops the policy binding to a fixed camera rig, the failure Part 4 quantified at **100%** to **0%** [[arXiv:2409.03403]](https://arxiv.org/abs/2409.03403).
+and the rates are disclosed in full, which is unusual enough to be worth copying verbatim [[arXiv:2604.15483 §V-E, §VI-B]](https://arxiv.org/abs/2604.15483):
 
-Train with simulated inference delay of **0 to 12** timesteps — a **240 ms** budget at 50 Hz [computed: 12 timesteps at 50 Hz]. Doing it in training rather than at test time costs nothing at inference [[arXiv:2604.15483 App. D]](https://arxiv.org/abs/2604.15483).
+| what is dropped | rate | source |
+|---|---|---|
+| the entire observation history | $p = 0.3$ | [[arXiv:2604.15483 §VI-B]](https://arxiv.org/abs/2604.15483) |
+| the rear camera view | $p = 0.3$ | [[arXiv:2604.15483 §VI-B]](https://arxiv.org/abs/2604.15483) |
+| all episode metadata at once | 15% | [[arXiv:2604.15483 §V-E]](https://arxiv.org/abs/2604.15483) |
+| each metadata field, additionally | 5% | [[arXiv:2604.15483 §V-E]](https://arxiv.org/abs/2604.15483) |
+| the subtask string, inside subgoal examples | 30% | [[arXiv:2604.15483 §V-E]](https://arxiv.org/abs/2604.15483) |
+| subgoal images present at all | in 25% of the batch | [[arXiv:2604.15483 §V-E]](https://arxiv.org/abs/2604.15483) |
+
+Real subgoals are sampled as $p = 0.25$ end-of-segment and $p = 0.75$ uniform up to 4 seconds ahead [[arXiv:2604.15483 §VI-C]](https://arxiv.org/abs/2604.15483). Training also simulates inference delay of 0 to 12 timesteps, a 240 ms budget at 50 Hz, which costs nothing at inference because it was paid for in training [computed: 12 timesteps at 50 Hz].
+
+Dropout here is not regularization in the usual sense, and reading it that way is how teams talk themselves out of it. It is what makes every field *optional* at test time — omit the subtask string, or the metadata, or the history, and you still get a policy [[arXiv:2604.15483 §V-E]](https://arxiv.org/abs/2604.15483). It is also what stops the policy binding to a fixed camera rig, the failure Part 4 quantified at 100% to 0% [[arXiv:2409.03403]](https://arxiv.org/abs/2409.03403).
+
+Two rates deserve their own explanation. The subgoal share is capped at a quarter because with a subgoal image present the objective degenerates toward inverse dynamics and trains much faster — left uncapped, the model learns to read the subgoal instead of the scene [[arXiv:2604.15483 §V-E]](https://arxiv.org/abs/2604.15483). And control mode is the one field never dropped, because a joint-space command and an end-effector command are different instructions wearing the same numbers [[arXiv:2604.15483 §V-D]](https://arxiv.org/abs/2604.15483).
 
 ### Stage three — RL, which is where the recipe stops fitting
 
-There is no cheap verifier, so the method that works learns a value function from the robot's own experience and conditions the policy on it [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759).
+Two things break at once. There is no cheap verifier — "is the shirt folded?" has no assertion to call — and the flow-matching policy has no tractable log-likelihood, so a policy gradient has nothing to differentiate [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759). The published comparison is blunt about where that leads: PPO and AWR both underperformed the method below, with PPO struggling in the off-policy regime that real-robot data forces on you [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759).
 
-Train a distributional value model — same architecture as the policy but a smaller **670M** backbone, over **201** bins of discretized Monte Carlo return [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759). The reward is sparse: zero at the terminal step on success, a large negative constant on failure, and **-1** otherwise [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759). Then condition the policy on a *binarized advantage indicator inserted as text*, positioned after the language input so only action log-likelihoods are affected [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759). Human interventions are forced to the positive indicator, on the assumption that an expert correction is a good action [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759).
+**Definition — the reward.** Deliberately trivial, so that it ports to any task without a per-task verifier [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759):
 
-Two disciplines make it converge. The improvement threshold sits at the **30th** percentile of the value function's own predictions for that task [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759). And **each iteration finetunes from the pre-trained checkpoint, never from the previous iteration** — otherwise the policy drifts [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759). Budget about **300** trajectories per iteration [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759).
+$$r_t = \begin{cases} 0 & \text{terminal step, success} \\ -c & \text{terminal step, failure} \\ -1 & \text{otherwise} \end{cases} \qquad\quad G_t = \sum_{k \ge t} r_k$$
+
+Values are then normalized per task by maximum episode length into the interval $(-1, 0)$, which makes the value function readable as "how much of this episode is still left, negated" [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759). The failure constant $c$ is described only as large, and goes in the gap ledger [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759).
+
+**Definition — the critic.** A distributional value model with the same architecture as the policy on a smaller 670M backbone, trained by cross-entropy over 201 bins of discretized Monte-Carlo return [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759):
+
+$$\mathcal{L}_{V}(\omega) \;=\; -\,\mathbb{E}\Big[\log p_{\omega}\big(\mathrm{bin}(G_t)\ \big|\ o_t,\ \ell\big)\Big]$$
+
+Distributional rather than scalar because the return distribution over a real fleet is wide and multi-modal, and a mean would sit in a part of it that never happens [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759).
+
+**Definition — the advantage, and its binarization.** The estimator is the one-step difference of the critic, and the threshold is set from the critic's own predictions rather than from zero [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759):
+
+$$\hat{A}_t \;=\; V_{\omega}(o_{t+1}) - V_{\omega}(o_t), \qquad z_t \;=\; \mathbf{1}\{\hat{A}_t > \varepsilon_{\ell}\}, \qquad \varepsilon_{\ell} = \text{30th percentile for task } \ell$$
+
+**Then the move that makes it work.** Rather than updating the policy toward high advantage, $z_t$ is rendered as plain text — `Advantage: positive` — and inserted after the language input and before the actions, so that only action log-likelihoods are affected [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759). Training then proceeds as ordinary supervised learning over the entire dataset, failures included. Reinforcement learning has been converted back into conditional imitation, which is precisely the trick that made "keep the bad data" safe in M1, applied one level up [[arXiv:2604.15483 §V-C]](https://arxiv.org/abs/2604.15483).
+
+![The RL iteration](figures/f18-recap-iteration.png)
+
+```python
+D = demonstrations
+for k in range(K):
+    rollouts = run(pi_k, tasks, allow_human_intervention=True)   # about 300 trajectories
+    label_terminal_outcome(rollouts)                             # success / failure, nothing finer
+    D += rollouts                                                # failures kept, on purpose
+
+    omega = fit_value(D)                                         # 670M, 201 bins, MC returns
+    for (o, o_next) in D:
+        z[o] = "positive" if V(o_next) - V(o) > eps[task(o)] else "negative"
+    for seg in human_interventions(D):
+        z[seg] = "positive"                                      # an expert correction is a good action
+    z = randomly_omit(z)                                         # leaves guidance available at inference
+
+    pi_next = finetune(pi_pretrained, D, condition=z)            # NOT from pi_k
+```
+
+Two disciplines make it converge rather than drift. The threshold is a percentile of the critic's own predictions for that task, so it tracks a moving policy instead of a fixed bar [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759). And **each iteration finetunes from the pre-trained checkpoint, never from the previous iteration** — the line in the algorithm above that looks like a typo and is not [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759). Budget about 300 trajectories per iteration [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759).
+
+**The exit most teams should take.** You may not have to run this loop on your generalist at all. Specialists are finetuned from the pre-trained model while the final generalist is trained from scratch on the mixture, and the specialists' RL rollouts enter that mixture as ordinary conditioned examples — which the lab describes as a kind of distillation [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759). Run RL narrowly where it pays, and let M1's flywheel carry the result into the generalist without a policy gradient ever touching it [[arXiv:2604.15483 §VI-A]](https://arxiv.org/abs/2604.15483).
 
 **Gate.** Throughput at least **2x** and failure rate at least halved against M2 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759). Reference platform: two **6**-DoF arms, parallel-jaw grippers, **3** cameras, tasks of **5 to 15** minutes [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759).
 

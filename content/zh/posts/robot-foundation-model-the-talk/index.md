@@ -150,6 +150,10 @@ backbone 固定住，diffusion 多花的算力换来约 0.1 个百分点，代�
 
 最该抄的是那道防火墙：action expert 的梯度不回流进 backbone [[arXiv:2604.15483 §III]](https://arxiv.org/abs/2604.15483)。FAST token 只在训练期存在，且从不与 flow action 互相 attend [[arXiv:2604.15483 App. B]](https://arxiv.org/abs/2604.15483)。
 
+![](figures/f17-dual-objective.png)
+
+一步训练，两个损失，两组参数。FAST token 上的交叉熵训 backbone；flow matching 训 expert，回归那个把噪声送往动作的速度 [[arXiv:2410.24164]](https://arxiv.org/abs/2410.24164)。`stop_gradient` 是唯一的耦合，而两个损失的相对权重是唯一没人公开过的那个数 [[arXiv:2604.15483 §III]](https://arxiv.org/abs/2604.15483)。
+
 ![](slides/s17-training-schedule.zh.png)
 
 历史以 p = 0.3 丢弃，元数据 15% 与 5%，25% 的 batch 带 subgoal [[arXiv:2604.15483 §V-E]](https://arxiv.org/abs/2604.15483)。这些不是通常意义的正则化——它们在阻止策略绑死到固定相机装机 [[arXiv:2409.03403]](https://arxiv.org/abs/2409.03403)。
@@ -157,6 +161,10 @@ backbone 固定住，diffusion 多花的算力换来约 0.1 个百分点，代�
 ![](figures/b01-f10-runtime-timeline.png)
 
 压缩之前先把调度修好：三条线程谁也不等谁，所以 1.25 秒的 world model 调用从「致命」变成「看不见」 [[arXiv:2604.15483 §VII]](https://arxiv.org/abs/2604.15483)。
+
+![](figures/f18-recap-iteration.png)
+
+没有便宜的 verifier，也没有可解析的似然，所以 PPO 和 AWR 都输给了「条件化」 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。拟合一个 critic，把它的一步差分对着该任务的第 30 百分位二值化，把结果以文本写进 prompt，然后在全部数据上做监督训练——失败样本也算进去 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。
 
 ![](slides/s18-recap-loop.zh.png)
 

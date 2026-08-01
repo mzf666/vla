@@ -397,31 +397,171 @@ Speed: 8000. Quality: 5. Mistake: false. Control Mode: joint.
 
 ## M3 —— 预训练、后训练，然后 RL
 
+这一段是硬件团队交给学习团队的那一份，所以它按算法来写，而不是按计划来写：对象是什么、在最大化什么、一步训练逐行做了什么、推理时又发生什么 [[arXiv:2604.15483 §III]](https://arxiv.org/abs/2604.15483)。
+
+### 记号，只定义一次
+
+| 符号 | 是什么 | 具体取值 |
+|---|---|---|
+| $o_t$ | $t$ 时刻的观测 | 最多 4 路 448×448 图像，加上关节构型 [[arXiv:2604.15483 §IV]](https://arxiv.org/abs/2604.15483) |
+| $o_{t-T:t}$ | 观测历史 | 6 帧，步长 1 秒 [[arXiv:2603.03596]](https://arxiv.org/abs/2603.03596) |
+| $C_t$ | 上下文 | 子任务字符串、speed、quality、mistake、control mode，以及可选的 subgoal 图像 [[arXiv:2604.15483 §V-C]](https://arxiv.org/abs/2604.15483) |
+| $A_t = a_{t:t+H}$ | 动作 chunk | $H = 50$ 个未来关节目标 [[arXiv:2604.15483 §IV]](https://arxiv.org/abs/2604.15483) |
+| $\tilde{H}$ | 真正执行的前缀 | 50 步里的 15 或 25 步，然后重新规划 [[arXiv:2604.15483 §VII]](https://arxiv.org/abs/2604.15483) |
+| $\theta$ | backbone 参数 | 4B Gemma-3，内含 400M 视觉编码器 [[arXiv:2604.15483 §IV]](https://arxiv.org/abs/2604.15483) |
+| $\phi$ | action expert 参数 | 860M flow matching transformer [[arXiv:2604.15483 §IV]](https://arxiv.org/abs/2604.15483) |
+| $\omega$ | value model 参数 | 670M，只在 RL 阶段存在 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759) |
+
+整条流水线最大化的是同一个量，下面每个阶段只是逼近它的不同方式 [[arXiv:2604.15483 §III]](https://arxiv.org/abs/2604.15483)：
+
+$$\max_{\theta,\,\phi}\ \ \mathbb{E}_{(o,\,C,\,A)\sim\mathcal{D}}\Big[\log \pi_{\theta,\phi}\big(A_t \mid o_{t-T:t},\ C_t\big)\Big]$$
+
+有一条注意事项要一路带到第三阶段，因为它正是 LLM 类比断掉的地方：flow matching 的 expert 优化的是这个对数似然的一个近似下界，而不是它本身，所以后面根本没有一个可微的似然给 policy gradient 用 [[arXiv:2604.15483 §III]](https://arxiv.org/abs/2604.15483)。
+
+### 两个目标，一道防火墙
+
+![一步训练，两个目标，一道防火墙](figures/f17-dual-objective.png)
+
+> **预备知识 —— flow matching。** flow matching 学的是一个速度场，它沿着一条以 flow time 为参数的路径，把一个噪声样本搬运到一个数据样本。训练时在路径上随机取点回归这个速度，采样时把它积分出来。它是 diffusion 在连续动作上的对应物，路径更直，因此积分步数更少。
+
+**离散那一支训练 $\theta$。** FAST 用离散余弦变换压缩这个 chunk，量化，再用 byte-pair 编码成语言模型本来就有的 token，于是动作目标说的是 backbone 的母语 [[arXiv:2501.09747]](https://arxiv.org/abs/2501.09747)：
+
+$$y = \mathrm{BPE}\big(\mathrm{quant}(\mathrm{DCT}(A_t))\big),\qquad \mathcal{L}_{\mathrm{CE}}(\theta) \;=\; -\sum_{k}\log p_{\theta}\big(y_k \mid y_{\lt k},\ h_{\theta}(o_{t-T:t}, C_t)\big)$$
+
+这就是普通的 next-token 交叉熵，跟 backbone 预训练时用的是同一个损失——这也正是它不会忘掉「滤锅是什么」的全部原因 [[arXiv:2604.15483 §III]](https://arxiv.org/abs/2604.15483)。
+
+**连续那一支训练 $\phi$。** 采噪声 $\epsilon \sim \mathcal{N}(0, I)$，采一个偏向路径噪声端的 flow time $\tau$，做插值，然后回归那个把噪声送往动作的速度 [[arXiv:2410.24164]](https://arxiv.org/abs/2410.24164)：
+
+$$A^{\tau} = \tau A_t + (1-\tau)\,\epsilon, \qquad \mathcal{L}_{\mathrm{FM}}(\phi) \;=\; \mathbb{E}_{\tau,\,\epsilon}\Big\|\,v_{\phi}\big(A^{\tau},\ \tau,\ \mathrm{sg}[\,h_{\theta}\,]\big) \;-\; (A_t - \epsilon)\,\Big\|^{2}$$
+
+这里的符号约定取 $\tau = 0$ 是噪声、$\tau = 1$ 是动作 chunk；原文用的是相反的朝向，其余完全一致 [[arXiv:2410.24164]](https://arxiv.org/abs/2410.24164)。
+
+**耦合只有一个算子。** $\mathrm{sg}[\cdot]$ 是 stop-gradient，防火墙全在这里：expert 读得到 backbone 的每一个激活，却改不动其中任何一个 [[arXiv:2604.15483 §III]](https://arxiv.org/abs/2604.15483)。总损失是 $\mathcal{L}_{\mathrm{CE}} + \lambda\,\mathcal{L}_{\mathrm{FM}}$，而 $\lambda$ 是这一节里唯一没人公开过的数——它进 gap 清单，而不是被我写成一句自信的话 [[arXiv:2604.15483 §III]](https://arxiv.org/abs/2604.15483)。
+
+### 一步训练，逐行拆开
+
+```python
+for o, C, A in mixture:                      # M1 的飞轮，每个 batch 重新采样
+    C = drop_fields(C)                       # 丢弃率见阶段二；让每个字段都变成可选
+    h = backbone(o, C)                       # theta: 400M SigLIP + MEM 历史编码 + 4B Gemma-3
+
+    # 离散支路 —— 训练 theta，用 backbone 本来就会说的语言
+    y = fast_tokenize(A)                     # DCT -> 量化 -> BPE
+    loss_ce = cross_entropy(fast_head(h), y)
+
+    # 连续支路 —— 只训练 phi
+    tau = sample_flow_time()                 # 偏向噪声端
+    eps = randn_like(A)
+    A_tau = tau * A + (1 - tau) * eps
+    v = action_expert(A_tau, tau, stop_gradient(h))     # <-- 防火墙，就这一次调用
+    loss_fm = mse(v, A - eps)
+
+    (loss_ce + lam * loss_fm).backward()
+    opt.step()
+```
+
+设计全压在两行上。`stop_gradient(h)` 就是 knowledge insulation，删掉它是你手上代价最高的一次单字符改动——高方差的回归梯度会一路冲进 backbone，把你当初把它接上来所图的那份网络语义抹掉 [[arXiv:2604.15483 §III]](https://arxiv.org/abs/2604.15483)。而 `fast_head(h)` **不带** stop-gradient，才是让 backbone 还在学动作这件事的原因；反过来把它删了，你手上就只剩一个冻住的 VLM 外挂一个策略 [[arXiv:2501.09747]](https://arxiv.org/abs/2501.09747)。
+
+注意力掩码是第三道控制，而且它是正确性要求，不是优化技巧：FAST token **就是**那个量化过的标准答案，能 attend 到它的 expert 会学会抄答案而不是看场景，到了部署环境——那里根本没有这些 token——直接崩掉 [[arXiv:2604.15483 App. B]](https://arxiv.org/abs/2604.15483)。
+
+### 推理，逐行拆开
+
+```python
+h  = backbone(o, C_runtime)         # quality=5, mistake=false, speed=第 15 百分位
+kv = cache(h)                       # 动作 attend 前缀；前缀从不回头 attend 动作
+
+A = randn(50, action_dim)           # tau = 0：纯噪声
+for i in range(5):                  # delta = 1/5，前向 Euler
+    A = A + (1 / 5) * action_expert(A, i / 5, kv)
+
+execute(A[:25])                     # 或 A[:15]；然后重新观测，再来一轮
+```
+
+前缀只编码一次，5 个去噪步全部复用，这是掩码直接派发的红利：因为前缀不 attend 动作 token，动作被逐步细化的过程里，前缀里没有任何东西会变 [[arXiv:2604.15483 §VII]](https://arxiv.org/abs/2604.15483)。一个掩码决策，同时买到正确性和大约一整趟前向的开销。
+
+到这里元数据字段已经不是标注而是旋钮了，而 guidance 让旋钮更锐利 [[arXiv:2604.15483 §VII]](https://arxiv.org/abs/2604.15483)：
+
+$$v \;=\; v_{\phi}(\,\cdot \mid \varnothing\,) \;+\; w\,\big(v_{\phi}(\,\cdot \mid C\,) - v_{\phi}(\,\cdot \mid \varnothing\,)\big),\qquad w \in \{1.3,\ 1.7,\ 2.2\}$$
+
+朴素做法是两趟前向。实际实现只用一趟：把有条件和无条件两支打包进同一条序列，做成一棵互不 attend 的注意力树 [[arXiv:2604.15483 App. B]](https://arxiv.org/abs/2604.15483)。
+
 ### 阶段一 —— 预训练
 
-从 VLM checkpoint 出发，一个通才覆盖混合里的所有机器人和任务。这个阶段要的从来就不是单一任务上的成绩，要的是那个共享表示——它才是让 M5 换第二种本体变得便宜的原因 [[arXiv:2408.11812]](https://arxiv.org/abs/2408.11812)。
+一个 generalist，覆盖混合数据里的每一种机器人和每一个任务，从视觉-语言 checkpoint 初始化，用上面那两个目标一起训 [[arXiv:2604.15483 §III]](https://arxiv.org/abs/2604.15483)。这一阶段没有任何任务特化，也没有任何本体特化：动作空间被补零到一个公共宽度，好让异构机器人共用一个头——这就是卡点一以实现细节的形态现身 [[arXiv:2410.24164]](https://arxiv.org/abs/2410.24164)。
+
+这一阶段真正要的是那份共享表征，它让 M5 的第二种本体变得便宜；而第 1 部分那个消融就是为它付钱的理由——把网络预训练抽掉，泛化掉到 1% [[arXiv:2310.08864 Table II]](https://arxiv.org/abs/2310.08864)。
 
 ### 阶段二 —— 后训练
 
-下面每个数字都是已披露的超参数，不是建议。整段历史以 **p = 0.3** 丢弃，后置相机视角同样 **p = 0.3** [[arXiv:2604.15483 §VI-B]](https://arxiv.org/abs/2604.15483)。episode 元数据整体 **15%** 的概率丢掉，每个分量再额外 **5%** [[arXiv:2604.15483 §V-E]](https://arxiv.org/abs/2604.15483)。**25%** 的 batch 携带 subgoal 图像，而在这些样本内部，subtask 指令有 **30%** 的概率被丢掉 [[arXiv:2604.15483 §V-E]](https://arxiv.org/abs/2604.15483)。真实 subgoal 的采样是 **p = 0.25** 取段末、**p = 0.75** 在往后 **4** 秒内均匀取 [[arXiv:2604.15483 §VI-C]](https://arxiv.org/abs/2604.15483)。
+这一阶段做的事，是教会模型「它自己的上下文并不可靠」 [[arXiv:2604.15483 §V-E]](https://arxiv.org/abs/2604.15483)。形式上，每次前向之前先把上下文破坏掉，
 
-dropout 正是让每个字段在测试期都变成**可选**的那个机制：字段缺席时模型必须依然称职，这才使得你可以省掉 subtask、省掉元数据、省掉历史，仍然拿到一个能用的策略 [[arXiv:2604.15483 §V-E]](https://arxiv.org/abs/2604.15483)。
+$$\tilde{C} = D_{\rho}(C), \qquad \Pr[\,\text{字段 } j \text{ 存活}\,] = 1 - \rho_j$$
 
-有两个比例值得解释。subgoal 的占比被压在四分之一，是因为一旦有了 subgoal，目标函数会朝逆动力学退化、训练快得多——不设上限的话，模型就学会去读 subgoal 而不是读场景 [[arXiv:2604.15483 §V-E]](https://arxiv.org/abs/2604.15483)。而那些 dropout 也不是通常意义上的正则化：它们是在阻止策略把自己绑死在一套固定的相机装机上，也就是第 4 部分量化过的那个从 **100%** 掉到 **0%** 的失效模式 [[arXiv:2409.03403]](https://arxiv.org/abs/2409.03403)。
+而这些比率是完整公开的，罕见到值得逐条照抄 [[arXiv:2604.15483 §V-E, §VI-B]](https://arxiv.org/abs/2604.15483)：
 
-训练时要注入 **0 到 12** 个时间步的模拟推理延迟——在 50 Hz 下就是 **240 毫秒**的预算 [computed: 12 timesteps at 50 Hz]。放在训练期做而不是测试期做，推理时不额外收费 [[arXiv:2604.15483 App. D]](https://arxiv.org/abs/2604.15483)。
+| 丢什么 | 比率 | 出处 |
+|---|---|---|
+| 整段观测历史 | $p = 0.3$ | [[arXiv:2604.15483 §VI-B]](https://arxiv.org/abs/2604.15483) |
+| 后视相机那一路 | $p = 0.3$ | [[arXiv:2604.15483 §VI-B]](https://arxiv.org/abs/2604.15483) |
+| 整包 episode 元数据 | 15% | [[arXiv:2604.15483 §V-E]](https://arxiv.org/abs/2604.15483) |
+| 每个元数据字段，再额外 | 5% | [[arXiv:2604.15483 §V-E]](https://arxiv.org/abs/2604.15483) |
+| subgoal 样本内部的子任务字符串 | 30% | [[arXiv:2604.15483 §V-E]](https://arxiv.org/abs/2604.15483) |
+| 是否带 subgoal 图像 | 只在 25% 的 batch 里带 | [[arXiv:2604.15483 §V-E]](https://arxiv.org/abs/2604.15483) |
+
+真实 subgoal 的采样是 $p = 0.25$ 取段末、$p = 0.75$ 在 4 秒内均匀取 [[arXiv:2604.15483 §VI-C]](https://arxiv.org/abs/2604.15483)。训练同时模拟 0 到 12 个时间步的推理延迟，在 50 Hz 上就是 240 毫秒的预算；这笔账在训练时付掉，推理时一分不花 [computed: 12 timesteps at 50 Hz]。
+
+这里的 dropout 不是通常意义的正则化，而把它读成正则化，正是团队们说服自己不做它的方式。它真正做的是让每个字段在测试时都**可选**——子任务字符串不给、元数据不给、历史不给，你仍然拿得到一个策略 [[arXiv:2604.15483 §V-E]](https://arxiv.org/abs/2604.15483)。它同时也在阻止策略绑死到固定相机装机，也就是第 4 部分量化过的那个从 100% 到 0% 的失效 [[arXiv:2409.03403]](https://arxiv.org/abs/2409.03403)。
+
+有两个比率值得单独解释。subgoal 的占比被压在四分之一，是因为一旦上下文里有 subgoal 图像，目标就退化成接近逆动力学，训得快得多——不设上限，模型就学会去读 subgoal 而不是读场景 [[arXiv:2604.15483 §V-E]](https://arxiv.org/abs/2604.15483)。而 control mode 是唯一一个从不丢弃的字段，因为关节空间指令和末端执行器指令是两条不同的命令，却穿着同一身数字 [[arXiv:2604.15483 §V-D]](https://arxiv.org/abs/2604.15483)。
 
 ### 阶段三 —— RL，也就是这套配方开始不合身的地方
 
-没有便宜的 verifier，所以真正work的方法是：从机器人自己的经验里学一个 value function，再把策略条件化在它上面 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。
+两件事同时崩。一是没有便宜的 verifier——「衬衫叠好了吗」没有哪一句断言可以调用；二是 flow matching 策略没有可解析的对数似然，policy gradient 根本没有东西可微 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。公开的对比说得很直白：PPO 和 AWR 都打不过下面这个方法，而 PPO 尤其在真实机器人数据强加给你的 off-policy 情形里吃力 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。
 
-训一个分布式 value model——架构和策略相同，但 backbone 小到 **670M**，在 **201** 个离散化蒙特卡洛回报的分箱上做 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。奖励是稀疏的：成功时终止步给 0，失败时给一个大的负常数，其余每步 **-1** [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。然后把策略条件化在一个**以文本形式插入的二值化 advantage 指示符**上，位置放在语言输入之后，这样只有动作的对数似然会受影响 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。人工介入的片段被强制标成正指示符，前提假设是专家的纠正动作是好动作 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。
+**定义 —— 奖励。** 刻意做得很朴素，好让它不需要逐任务的 verifier 就能移植到任何任务上 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)：
 
-有两条纪律决定它收不收敛。改进阈值取在 value function 自己对该任务预测值的第 **30** 百分位 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。以及——**每一轮迭代都从预训练 checkpoint 微调，绝不从上一轮迭代微调**，否则策略会漂 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。每轮按约 **300** 条轨迹做预算 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。
+$$r_t = \begin{cases} 0 & \text{终止步，成功} \\ -c & \text{终止步，失败} \\ -1 & \text{其余} \end{cases} \qquad\quad G_t = \sum_{k \ge t} r_k$$
 
-**通过条件。** 相对 M2，吞吐至少 **2x**，失败率至少减半 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。参考平台：两条 **6** 自由度机械臂、平行夹爪、**3** 路相机，任务时长 **5 到 15** 分钟 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。
+数值随后按任务用最大 episode 长度归一到区间 $(-1, 0)$，于是 value function 可以直接读成「这条 episode 还剩多少，取负号」 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。失败常数 $c$ 只被描述为「很大的负数」，它进 gap 清单 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。
 
-这个里程碑就是第 1 部分那第四条能力轴，也是最可能延期的一个。它同时是通往「交付之后还会变好的机器人」唯一被公开验证过的路径 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。*关掉大脑/部署里训练相关的那半。*
+**定义 —— critic。** 一个分布式 value model，架构与策略相同，backbone 换成更小的 670M，训练方式是在 201 个离散化 Monte-Carlo 回报的分箱上做交叉熵 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)：
+
+$$\mathcal{L}_{V}(\omega) \;=\; -\,\mathbb{E}\Big[\log p_{\omega}\big(\mathrm{bin}(G_t)\ \big|\ o_t,\ \ell\big)\Big]$$
+
+用分布而不用标量，是因为真实机队上的回报分布又宽又多峰，取均值会落在一个从不发生的位置上 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。
+
+**定义 —— advantage，以及它的二值化。** 估计量就是 critic 的一步差分，而阈值取自 critic 自己的预测，而不是取零 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)：
+
+$$\hat{A}_t \;=\; V_{\omega}(o_{t+1}) - V_{\omega}(o_t), \qquad z_t \;=\; \mathbf{1}\{\hat{A}_t > \varepsilon_{\ell}\}, \qquad \varepsilon_{\ell} = \text{任务 } \ell \text{ 的第 30 百分位}$$
+
+**然后是那个让整件事成立的动作。** 它不去朝高 advantage 更新策略，而是把 $z_t$ 渲染成纯文本——`Advantage: positive`——插在语言输入之后、动作之前，于是只有动作的对数似然被影响 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。接下来就是在整个数据集上做普通的监督训练，失败样本一并算进去。强化学习被换回成了条件模仿——正是让 M1 那句「把坏数据留下」变得安全的同一个把戏，只是往上抬了一层 [[arXiv:2604.15483 §V-C]](https://arxiv.org/abs/2604.15483)。
+
+![RL 迭代](figures/f18-recap-iteration.png)
+
+```python
+D = demonstrations
+for k in range(K):
+    rollouts = run(pi_k, tasks, allow_human_intervention=True)   # 约 300 条轨迹
+    label_terminal_outcome(rollouts)                             # 只标成功/失败，不标更细
+    D += rollouts                                                # 失败刻意留着
+
+    omega = fit_value(D)                                         # 670M，201 个分箱，MC 回报
+    for (o, o_next) in D:
+        z[o] = "positive" if V(o_next) - V(o) > eps[task(o)] else "negative"
+    for seg in human_interventions(D):
+        z[seg] = "positive"                                      # 专家介入被当作好动作
+    z = randomly_omit(z)                                         # 让推理时还能用 guidance
+
+    pi_next = finetune(pi_pretrained, D, condition=z)            # 不是从 pi_k 出发
+```
+
+有两条纪律让它收敛而不是漂走。阈值取的是 critic 对该任务自身预测的百分位，所以它跟着一个在动的策略走，而不是钉在一根固定的横杆上 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。以及**每一轮都从预训练 checkpoint 微调，绝不从上一轮出发**——上面算法里那行看着像笔误、其实不是的语句 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。每轮预算约 300 条轨迹 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。
+
+**多数团队应该走的那个出口。** 你的 generalist 也许根本不必跑这个闭环。specialist 从预训练模型微调，而最终的 generalist 是在混合数据上从零训的，specialist 的 RL rollout 就以普通带条件样本的身份进入那份混合——实验室把这称作一种蒸馏 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。在划算的地方窄窄地跑 RL，然后让 M1 的飞轮把结果搬进 generalist，全程不需要任何 policy gradient 碰过它 [[arXiv:2604.15483 §VI-A]](https://arxiv.org/abs/2604.15483)。
+
+**通过条件。** 相对 M2，吞吐至少 **2x**，失败率至少减半 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。参考平台：两条 **6** 自由度机械臂、平行夹爪、**3** 个相机，任务时长 **5 到 15** 分钟 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。
+
+这个里程碑就是第 1 部分的第四条能力轴，也是最可能延期的那一个。它同时也是目前唯一公开的、能让机器人在你发货之后还继续变强的路线 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。*收回「大脑/部署」的训练那一半。*
 
 ## M4 —— 把算力搬上机器
 
