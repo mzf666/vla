@@ -4,7 +4,7 @@ date: 2026-08-15
 draft: false
 ---
 
-七张主线，四张备用。每张一图三行：逻辑从图上就能读出来，文字只负责点名增量 [computed: 本 deck 的设计约束]。
+九张主线，四张备用。每张一图三行：逻辑从图上就能读出来，文字只负责点名增量 [computed: 本 deck 的设计约束]。
 
 ---
 
@@ -28,7 +28,27 @@ draft: false
 
 ---
 
-## 3 —— 数据地图：我们怎么想数据这件事
+## 3 —— 模型怎么被调用，怎么被训练
+
+![](figures/f16-model-io.png)
+
+- 输入：最多 4 路相机 × 最多 6 帧历史、每帧 448×448；proprioception 每个历史状态一个 token；语言 prompt 六个字段 [[arXiv:2604.15483 §VI-B]](https://arxiv.org/abs/2604.15483)
+- 输出：50 个 action token（执行 25 个就重规划）加一个标量 value；最小变体 3 路相机、5 步去噪下 38 ms [[arXiv:2604.15483 App. D]](https://arxiv.org/abs/2604.15483)
+- 每个本体的 action 维度是所有公开系统都没给的一个量，由 embodiment adapter 决定 [[arXiv:2604.15483 §VI-B]](https://arxiv.org/abs/2604.15483)
+
+---
+
+## 4 —— 一条训练样本，三路监督
+
+![](figures/f17-supervision.png)
+
+- backbone 由 FAST token 交叉熵监督（DCT → 量化 → BPE，700 压到 53，词表 1024，只在训练时存在）[[arXiv:2501.09747]](https://arxiv.org/abs/2501.09747)
+- action expert 由 flow matching 监督，噪声直线插值到记录下的 chunk；value head 由结局与接管监督 [[arXiv:2410.24164]](https://arxiv.org/abs/2410.24164)
+- 中间那道防火墙是关键：action expert 的梯度不回流进 backbone，否则动作训练会磨掉 VLM 的语义能力 [[arXiv:2604.15483 §III]](https://arxiv.org/abs/2604.15483)
+
+---
+
+## 5 —— 数据地图：我们怎么想数据这件事
 
 ![](figures/f04-data-map.png)
 
@@ -38,7 +58,7 @@ draft: false
 
 ---
 
-## 4 —— 数据飞轮
+## 6 —— 数据飞轮
 
 ![](figures/f09-flywheel.png)
 
@@ -48,7 +68,7 @@ draft: false
 
 ---
 
-## 5 —— 评估：整条路线的瓶颈
+## 7 —— 评估：整条路线的瓶颈
 
 ![](figures/f11-eval.png)
 
@@ -58,7 +78,7 @@ draft: false
 
 ---
 
-## 6 —— 强化学习：经验循环怎么真的转起来
+## 8 —— 强化学习：经验循环怎么真的转起来
 
 ![](figures/f14-experience-loop.png)
 
@@ -68,7 +88,7 @@ draft: false
 
 ---
 
-## 7 —— 路线图
+## 9 —— 路线图
 
 ![](figures/f12-roadmap-public.png)
 

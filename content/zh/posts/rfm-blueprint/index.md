@@ -64,11 +64,17 @@ foundation model 意味着能力必须从大模型范式里长出来——把参
 
 ## Policy API Contract
 
+![模型到底怎么被调用](figures/f16-model-io.png)
+
 输入是一个 observation dict：若干路图像、机器人状态、一段语言 prompt。输出是一个 action chunk，形状 H × DoF，外加一个标量 value [[arXiv:2506.07339]](https://arxiv.org/abs/2506.07339)。
 
 参考取值 H 取 50，执行 horizon 取 25，在 50 Hz 控制器上对应 1.0 s 的动作块 [[arXiv:2506.07339]](https://arxiv.org/abs/2506.07339)。这组数字来自已公开的实测系统，我们直接沿用，不重新发明。
 
 另一个约定：**这份 contract 冻结**。冻下来之后，模型可以整代替换而不动机器人，机器人也可以换代而不必重训 backbone——后者靠一层 embodiment adapter 完成 [[arXiv:2602.18397]](https://arxiv.org/abs/2602.18397)。
+
+把这张图上的数字读一遍，接口就具体了：最多 4 路相机、每路最多 6 帧历史、每帧 448×448；proprioception 走线性投影，每个历史状态一个 token；语言 prompt 带任务、子任务、速度、质量、失误与控制模式六个字段 [[arXiv:2604.15483 §VI-B]](https://arxiv.org/abs/2604.15483)。参考实现的规模是 backbone 加 action expert，4B 和 860M [[arXiv:2604.15483 §IV]](https://arxiv.org/abs/2604.15483)。输出是 50 个 action token，彼此之间双向注意；已公开的最小变体在 3 路相机、5 步去噪下是 38 ms [[arXiv:2604.15483 App. D]](https://arxiv.org/abs/2604.15483)。
+
+有一个量是所有公开系统都没给的：**每个本体的 action 维度** [[arXiv:2604.15483 §VI-B]](https://arxiv.org/abs/2604.15483)。它由 embodiment adapter 决定，也是这份 contract 里唯一一个必须按你们的机器人填的空。
 
 多出来的那个 value 输出，现在看没用——行为克隆阶段确实用不上。但它是 experience loop 的前提。现在把它写进冻结接口，等于两年后接经验学习时，机器人侧一行代码都不用改 [[arXiv:2511.19647]](https://arxiv.org/abs/2511.19647)。
 
@@ -79,6 +85,20 @@ foundation model 意味着能力必须从大模型范式里长出来——把参
 ![Model Factory：每条边上写着下一阶段消费的产物](figures/f06-model-factory.png)
 
 沿流水线走一遍。每个环节只说三件事：负责什么、接口是什么、信息增量在哪
+
+在进入各节之前，先把训练侧的两件事一次讲清楚：一条训练样本里存了什么，以及每一部分由什么监督
+
+![一条训练样本存了什么，以及谁监督谁](figures/f17-supervision.png)
+
+一条样本包含六类内容：多路相机帧、关节状态与指令力矩、作为回归目标的 action chunk、语言（任务/子任务/控制模式）、episode 元数据（速度、质量、失误标记），以及结局与接管标记 [[arXiv:2604.15483 §VI-B]](https://arxiv.org/abs/2604.15483)。
+
+监督分三路，互不相同。**backbone 由 FAST token 的交叉熵监督**——动作先经离散余弦变换、量化，再用 byte-pair 编码进语言词表，700 个 token 压到 53，词表 1024；这些 token 只在训练时存在，推理时不产生 [[arXiv:2501.09747]](https://arxiv.org/abs/2501.09747)。**action expert 由 flow matching 监督**，噪声沿直线插值到记录下来的那个 chunk [[arXiv:2410.24164]](https://arxiv.org/abs/2410.24164)。**value head 由结局与接管监督**，按任务用最大 episode 长度归一化到 -1 到 0 区间 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。
+
+中间那道**防火墙**是这套设计的关键：action expert 的梯度不回流进 backbone [[arXiv:2604.15483 §III]](https://arxiv.org/abs/2604.15483)。没有它，动作训练会把 VLM 的语义能力磨掉——这就是 2.4 节说的 knowledge insulation 在梯度层面的具体形态。
+
+训练时还有一组刻意的遮盖：25% 的 batch 带 subgoal 图像，15% 的 batch 把 episode 元数据整体丢掉，后视相机以 0.3 的概率被丢弃 [[arXiv:2604.15483 §V-E]](https://arxiv.org/abs/2604.15483)。这些遮盖的用意是逼模型在信息不全时也能工作——部署时这些字段本来就经常缺。
+
+两件事要标成未知：**两个损失之间的相对权重**没有任何公开系统给过 [[arXiv:2604.15483 §III]](https://arxiv.org/abs/2604.15483)；**落盘的 episode 格式**也没有形成标准，LeRobot 与 RLDS 都在用 [computed: 两种格式并存，尚无标准]。前者影响训练稳定性，后者影响我们和外部数据集的互通，两个都得自己定。
 
 ## 2.1 数据配比
 

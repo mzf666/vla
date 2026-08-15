@@ -64,11 +64,17 @@ Worth saying: the 3D LiDAR, depth cameras, ultrasonics and visuo-tactile hands a
 
 ## The Policy API Contract
 
+![How the shipped model is called](figures/f16-model-io.png)
+
 Input is an observation dict: several image streams, robot state, a language prompt. Output is an action chunk of shape H × DoF, plus a scalar value [[arXiv:2506.07339]](https://arxiv.org/abs/2506.07339).
 
 Reference values: H = 50, execution horizon 25, which on a 50 Hz controller is a 1.0 s block of actions [[arXiv:2506.07339]](https://arxiv.org/abs/2506.07339). These come from published, measured systems. We adopt them rather than reinvent them.
 
 The other convention: **this contract is frozen**. Once frozen, the model can be replaced wholesale without touching the robot, and the robot can change generation without retraining the backbone — the latter through an embodiment adapter [[arXiv:2602.18397]](https://arxiv.org/abs/2602.18397).
+
+Reading the numbers off that figure makes the interface concrete: up to 4 cameras, up to 6 history frames each, 448×448 per frame; proprioception enters through a linear projection, one token per history state; the language prompt carries six fields — task, subtask, speed, quality, mistake, control mode [[arXiv:2604.15483 §VI-B]](https://arxiv.org/abs/2604.15483). The reference scale is a backbone plus an action expert at 4B and 860M [[arXiv:2604.15483 §IV]](https://arxiv.org/abs/2604.15483). Output is 50 action tokens attending bidirectionally among themselves, and the published minimal variant runs at 38 ms with 3 cameras and 5 denoising steps [[arXiv:2604.15483 App. D]](https://arxiv.org/abs/2604.15483).
+
+One quantity no published system gives: **the action dimension per embodiment** [[arXiv:2604.15483 §VI-B]](https://arxiv.org/abs/2604.15483). It is set by the embodiment adapter, and it is the one blank in this contract that has to be filled in against your robot.
 
 That extra value output looks useless today, and during behaviour cloning it is. But it is the precondition for the experience loop. Writing it into the frozen interface now means that two years from now, switching on experience learning changes no robot-side code at all [[arXiv:2511.19647]](https://arxiv.org/abs/2511.19647).
 
@@ -79,6 +85,20 @@ That extra value output looks useless today, and during behaviour cloning it is.
 ![The Model Factory: each edge carries the artifact the next stage consumes](figures/f06-model-factory.png)
 
 Walking the pipeline once. Each stage gets three things: what it owns, what its interface is, where the information increment sits
+
+Before the individual stages, two training-side questions are worth settling in one place: what a single training example contains, and what supervises each part of the model
+
+![What one training example holds, and what supervises what](figures/f17-supervision.png)
+
+An example carries six kinds of content: multi-camera frames, joint state and commanded torque, the action chunk that serves as the regression target, language (task, subtask, control mode), episode metadata (speed, quality, mistake flags), and the outcome with intervention flags [[arXiv:2604.15483 §VI-B]](https://arxiv.org/abs/2604.15483).
+
+Supervision splits three ways, and the three are unalike. **The backbone is supervised by cross-entropy over FAST tokens** — actions pass through a discrete cosine transform, are quantised, then byte-pair encoded into the language vocabulary, compressing 700 tokens to 53 against a vocabulary of 1024. Those tokens exist only during training and are never produced at inference [[arXiv:2501.09747]](https://arxiv.org/abs/2501.09747). **The action expert is supervised by flow matching**, with noise interpolated linearly toward the recorded chunk [[arXiv:2410.24164]](https://arxiv.org/abs/2410.24164). **The value head is supervised by outcome and intervention**, normalised per task by maximum episode length into the interval -1 to 0 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759).
+
+The **firewall** between them is what makes the design work: gradients from the action expert do not flow back into the backbone [[arXiv:2604.15483 §III]](https://arxiv.org/abs/2604.15483). Without it, action training erodes the VLM's semantics — this is knowledge insulation from section 2.4, expressed at the level of gradients.
+
+Training also applies deliberate masking: subgoal images on 25% of the batch, episode metadata dropped entirely on 15%, and the rear camera view dropped with probability 0.3 [[arXiv:2604.15483 §V-E]](https://arxiv.org/abs/2604.15483). The point of the masking is to force the model to work with incomplete information, because in deployment these fields are frequently missing anyway.
+
+Two things have to be marked unknown. **The relative weight of the two losses** is disclosed by no published system [[arXiv:2604.15483 §III]](https://arxiv.org/abs/2604.15483), and **the on-disk episode format** has no settled standard — LeRobot and RLDS are both in use [computed: both formats are in use and no standard has settled]. The first affects training stability, the second affects interoperability with outside datasets, and both are ours to decide.
 
 ## 2.1 Data composition
 
