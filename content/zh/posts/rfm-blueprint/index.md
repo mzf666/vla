@@ -216,7 +216,7 @@ manifest 的形状是"来源 × 阶段"的权重表，不是文件列表 [[arXiv
 
 输入是运行中的机器人，输出是入库边界上一批符合 contract 的 episode [[arXiv:2604.15483 §3]](https://arxiv.org/abs/2604.15483)。这里最容易给错答案，因为直觉解法在算术上就不成立。
 
-单台机器人未过滤的传感数据率是 35.665 MB/s，在线压缩后 0.213 MB/s，压掉 99.4% [[blog: Trossen robotic data pipeline]](https://www.trossenrobotics.com/post/robotic-data-pipeline-sensor-streams-to-training-datasets)。换成小时是 128 GB/h [computed: 35.665 MB/s × 3600]，单机一天约 3 TB/day [computed: 128 GB/h × 24 h]。按 300 台车队、每天 8 h 班次算，是 307 TB/day [computed: 128 GB/h × 8 h × 300]。没有任何回传链路吃得下。
+单台机器人未过滤的传感数据率是 35.665 MB/s，在线压缩后 0.213 MB/s，压掉 99.4% [[blog: Trossen robotic data pipeline]](https://www.trossenrobotics.com/post/robotic-data-pipeline-sensor-streams-to-training-datasets)。换成小时是 128 GB/h [computed: 35.665 MB/s × 3600]，单机一天约 3 TB/day [computed: 128 GB/h × 24 h]。乘以车队规模就是回传侧要面对的量级——具体多少取决于你们的实际在役台数和每天运行时长，这两个数我们不替你们假设 [computed: 车队规模与班次由部署方决定]。没有任何回传链路吃得下这个量。
 
 所以分流必须做在机器人本体上，四层：所有传感数据先进一个很短的环形缓冲；只有被触发标记的片段才落盘；落盘的片段在机上编码；充电时择机上传 [[blog: Trossen robotic data pipeline]](https://www.trossenrobotics.com/post/robotic-data-pipeline-sensor-streams-to-training-datasets)。触发条件四类——接管、失败、novelty 分数超阈，以及一份随机配额。
 
@@ -280,11 +280,13 @@ telemetry 回流那条边决定下一轮采什么。这条边断了，飞轮就�
 
 必须标清楚：以上来自企业博客，没有论文，也没有独立复现 [[blog: World Labs real-to-sim-to-real]](https://www.worldlabs.ai/blog/real-to-sim-to-real)。所以我们**不假设**排序保持成立，而是在 P1 用你们自己的场景把它测出来。
 
-这就引出这个器官自己的度量：**rank fidelity**——仿真给的策略排序，和真机排序的相关性。它必须被持续测量，不能被假定 [[blog: World Labs real-to-sim-to-real]](https://www.worldlabs.ai/blog/real-to-sim-to-real)。我们取 0.80 作为可用于筛选的下限 [computed: Spearman floor for screening use]。
+这就引出这个器官自己的度量：**rank fidelity**——仿真给的策略排序，和真机排序的相关性。它必须被持续测量，不能被假定 [[blog: World Labs real-to-sim-to-real]](https://www.worldlabs.ai/blog/real-to-sim-to-real)。
+
+这里我们刻意不给一个相关性阈值。**在 P0 把评估台自身的方差测出来之前，任何阈值都是编的**；阈值本来就该由那个方差决定，而不是反过来 [computed: 阈值由 P0 实测方差确定]。P1 的放行条件因此写成一条可操作的判据：**仿真筛选不能淘汰掉任何一个真机会排进第一梯队的 checkpoint**。这条判据不需要预设数字，也更接近我们真正在乎的事。
 
 理由很直接：一个画面精美但会打乱排序的生成器，比没有生成器更糟——它会用很高的置信度把错误的 checkpoint 推上线 [[blog: World Labs real-to-sim-to-real]](https://www.worldlabs.ai/blog/real-to-sim-to-real)。这个器官在被信任之前，得先证明自己值得信任。
 
-如果 P1 测出来达不到这个下限，路线不会中止，而是换一条更贵的通道：sim 退化为失败搜索工具，排序仍由真机决定，代价是每个 checkpoint 的评估周期按 387 次试验的量级重估 [computed: two-proportion test]。我们现在就把这条备用通道摆出来，因为它决定 P2 的节奏——提前规划，好过在 P1 结束时才发现。
+如果 P1 测出来这条判据不成立，路线不会中止，而是换一条更贵的通道：sim 退化为失败搜索工具，排序仍由真机决定，代价是每个 checkpoint 的评估周期按 387 次试验的量级重估 [computed: two-proportion test]。我们现在就把这条备用通道摆出来，因为它决定 P2 的节奏——提前规划，好过在 P1 结束时才发现。
 
 还有一条来自真机基准的警告要一并接受：仿真里的**绝对成功率**越来越不能作为真机可部署性的证据——高容量策略会很快把仿真基准吃透，而真实世界的接触、感知与执行难度并没有跟着上去 [[arXiv:2606.16826]](https://arxiv.org/abs/2606.16826)。这和我们上面的主张并不冲突，但边界要划清楚：**我们依赖的是仿真的排序能力，不是它的绝对分数**。所以放行条件写的是 rank correlation，不是"仿真成功率达到多少"。这两者被混为一谈，是这套方法最容易出错的地方。
 

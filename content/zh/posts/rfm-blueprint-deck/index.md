@@ -32,7 +32,7 @@ draft: false
 
 ![](figures/f09-flywheel.png)
 
-- 单机 128 GB/h，300 台车队一个 8 h 班次是 307 TB/day，所以分流必须做在机器人本体上 [computed: 128 GB/h × 8 h × 300]
+- 单机 128 GB/h、一天约 3 TB/day，乘以车队规模就是回传量级——分流必须做在机器人本体上 [computed: 128 GB/h × 24 h]
 - 只打分不删除；label 是挂在不可变 episode 上的可变层；dataset version 就是一份 manifest [[arXiv:2511.19647]](https://arxiv.org/abs/2511.19647)
 - 那份随机配额不能砍：砍掉它，留下来的全是失败，模型学到一个永远出错的世界 [[arXiv:2511.19647]](https://arxiv.org/abs/2511.19647)
 
@@ -44,7 +44,7 @@ draft: false
 
 - 区分 50% 与 60% 的成功率要约 387 次试验，而公开工作每个 checkpoint 只有 100 次真机试验 [computed: two-proportion test]
 - 所以先重建场景，再用 2000 次仿真筛选，真机只花在幸存者身上 [[blog: World Labs real-to-sim-to-real]](https://www.worldlabs.ai/blog/real-to-sim-to-real)
-- 仿真自己的可信度要持续测：rank fidelity 到不了 0.80，我们就换更贵的通道，而不是假装它成立 [computed: Spearman floor for screening use]
+- 仿真自己的可信度要持续测。我们不预设相关性阈值——那个数应该由 P0 实测的评估方差定出来，现在写死就是编的 [computed: 阈值由 P0 实测方差确定]
 
 ---
 

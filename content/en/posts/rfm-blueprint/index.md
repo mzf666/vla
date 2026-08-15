@@ -216,7 +216,7 @@ Projecting those regions onto the Model Factory's pipeline gives this figure, pr
 
 In: a running robot. Out: contract-conforming episodes at the ingest boundary [[arXiv:2604.15483 §3]](https://arxiv.org/abs/2604.15483). This is where the wrong answer is easiest to give, because the intuitive one fails on arithmetic.
 
-One humanoid produces 35.665 MB/s of unfiltered sensor data, reduced to 0.213 MB/s under online compression, a 99.4% reduction [[blog: Trossen robotic data pipeline]](https://www.trossenrobotics.com/post/robotic-data-pipeline-sensor-streams-to-training-datasets). That is 128 GB/h [computed: 35.665 MB/s × 3600], about 3 TB/day per machine [computed: 128 GB/h × 24 h]. Across a 300-robot fleet on an 8 h shift, 307 TB/day [computed: 128 GB/h × 8 h × 300]. No backhaul link absorbs that.
+One humanoid produces 35.665 MB/s of unfiltered sensor data, reduced to 0.213 MB/s under online compression, a 99.4% reduction [[blog: Trossen robotic data pipeline]](https://www.trossenrobotics.com/post/robotic-data-pipeline-sensor-streams-to-training-datasets). That is 128 GB/h [computed: 35.665 MB/s × 3600], about 3 TB/day per machine [computed: 128 GB/h × 24 h]. Multiply by fleet size for the figure backhaul has to face — how many units are actually in service and how many hours they run per day are yours, and we are not going to assume them for you [computed: fleet size and shift length are the deploying party's to set]. No link absorbs that volume.
 
 So triage happens on the robot, in four layers: everything lands in a short ring buffer; only trigger-marked segments persist; those are encoded on-device; upload happens opportunistically while charging [[blog: Trossen robotic data pipeline]](https://www.trossenrobotics.com/post/robotic-data-pipeline-sensor-streams-to-training-datasets). Four kinds of trigger — takeover, failure, novelty above threshold, and a random quota.
 
@@ -280,11 +280,13 @@ The same source reports three stronger claims: policies trained with no real dat
 
 Label that precisely: a company blog post, no paper, no independent reproduction [[blog: World Labs real-to-sim-to-real]](https://www.worldlabs.ai/blog/real-to-sim-to-real). So we do **not assume** rank preservation. We measure it at P1, on your venues.
 
-Which gives the organ its own metric: **rank fidelity**, the correlation between simulation's ordering and hardware's. Measured continuously, never assumed [[blog: World Labs real-to-sim-to-real]](https://www.worldlabs.ai/blog/real-to-sim-to-real). We take 0.80 as the floor for screening use [computed: Spearman floor for screening use].
+Which gives the organ its own metric: **rank fidelity**, the correlation between simulation's ordering and hardware's. Measured continuously, never assumed [[blog: World Labs real-to-sim-to-real]](https://www.worldlabs.ai/blog/real-to-sim-to-real).
+
+We deliberately do not state a correlation threshold here. **Until P0 measures the eval harness's own variance, any threshold would be invented** — and the threshold should be determined by that variance, not the other way round [computed: the threshold is set by P0's measured variance]. P1's gate is therefore written as an operational criterion: **the sim screen must not eliminate any checkpoint that hardware would have ranked in the top tier**. That needs no assumed number, and it is closer to what we actually care about.
 
 The reasoning is direct: a generator that looks beautiful but scrambles the ordering is worse than none, because it promotes the wrong checkpoint with high confidence [[blog: World Labs real-to-sim-to-real]](https://www.worldlabs.ai/blog/real-to-sim-to-real). This organ has to earn trust before it gets any.
 
-If P1 measures below that floor, the plan does not stop — it switches to a more expensive channel. Simulation degrades into a failure-search tool, ordering stays with hardware, and per-checkpoint evaluation time is re-estimated at the 387-trial scale [computed: two-proportion test]. We put that fallback on the table now because it sets P2's cadence, and planning for it beats discovering it when P1 ends.
+If P1 finds that criterion does not hold, the plan does not stop — it switches to a more expensive channel. Simulation degrades into a failure-search tool, ordering stays with hardware, and per-checkpoint evaluation time is re-estimated at the 387-trial scale [computed: two-proportion test]. We put that fallback on the table now because it sets P2's cadence, and planning for it beats discovering it when P1 ends.
 
 ---
 
