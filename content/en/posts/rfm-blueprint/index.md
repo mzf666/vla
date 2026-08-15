@@ -1,7 +1,7 @@
 ---
 title: "An RFM Implementation Blueprint: the Model Factory and the Data Flywheel"
 date: 2026-08-15
-draft: true
+draft: false
 ---
 
 ## What we would build together
@@ -18,7 +18,7 @@ The other half is a robot foundation model and the data system that feeds it. Wh
 
 *On-device* means the shipped artifact has to live inside the budget of a 0.7 kWh battery and one SoC [[blog: carnewschina 2026-04-13]](https://carnewschina.com/2026/04/13/chery-begins-online-sales-of-humanoid-robot-with-a-0-7-kwh-battery-at-41400-usd/).
 
-Those two look contradictory, and the resolution is to separate them in time: **build the intelligence with the large-model paradigm first, then compress it back down to the edge.** That second stage is not one technique but a chain — a compression and distillation stack built around on-policy distillation, training and inference infrastructure work, inference-side software optimisation, and hardware-software co-design [[arXiv:2604.00626]](https://arxiv.org/abs/2604.00626). The structure of this document follows that logic: Part 2 covers building it large, sections 2.6 and 2.7 cover compressing it back, and Part 6 covers how those two stages are ordered in time.
+Those two look contradictory, and the resolution is to separate them in time: **build the intelligence with the large-model paradigm first, then compress it back down to the edge.** That second stage is not one technique but a chain — a compression and distillation stack built around on-policy distillation, training and inference infrastructure work, inference-side software optimisation, and hardware-software co-design [[arXiv:2604.00626]](https://arxiv.org/abs/2604.00626). The structure of this document follows that logic: Part 2 covers building it large, sections 2.7 and 2.8 cover compressing it back, and Part 6 covers how those two stages are ordered in time.
 
 One rule runs through all of it: every number traces to a source, or to arithmetic on a source. Where it does not, we say we do not know yet rather than invent one [computed: this document's sourcing rule].
 
@@ -94,7 +94,7 @@ An example carries six kinds of content: multi-camera frames, joint state and co
 
 Supervision splits three ways, and the three are unalike. **The backbone is supervised by cross-entropy over FAST tokens** — actions pass through a discrete cosine transform, are quantised, then byte-pair encoded into the language vocabulary, compressing 700 tokens to 53 against a vocabulary of 1024. Those tokens exist only during training and are never produced at inference [[arXiv:2501.09747]](https://arxiv.org/abs/2501.09747). **The action expert is supervised by flow matching**, with noise interpolated linearly toward the recorded chunk [[arXiv:2410.24164]](https://arxiv.org/abs/2410.24164). **The value head is supervised by outcome and intervention**, normalised per task by maximum episode length into the interval -1 to 0 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759).
 
-The **firewall** between them is what makes the design work: gradients from the action expert do not flow back into the backbone [[arXiv:2604.15483 §III]](https://arxiv.org/abs/2604.15483). Without it, action training erodes the VLM's semantics — this is knowledge insulation from section 2.4, expressed at the level of gradients.
+The **firewall** between them is what makes the design work: gradients from the action expert do not flow back into the backbone [[arXiv:2604.15483 §III]](https://arxiv.org/abs/2604.15483). Without it, action training erodes the VLM's semantics — this is knowledge insulation from section 2.5, expressed at the level of gradients.
 
 Training also applies deliberate masking: subgoal images on 25% of the batch, episode metadata dropped entirely on 15%, and the rear camera view dropped with probability 0.3 [[arXiv:2604.15483 §V-E]](https://arxiv.org/abs/2604.15483). The point of the masking is to force the model to work with incomplete information, because in deployment these fields are frequently missing anyway.
 
@@ -126,15 +126,37 @@ In: the observation dict. Out: an action chunk plus a value [[arXiv:2506.07339]]
 
 The reference shape follows GR00T N1.7: an open VLM backbone plus a separately designed DiT action head, disclosed at 538M parameters across 16 layers [[arXiv:2607.15275]](https://arxiv.org/abs/2607.15275). That is the starting point we choose — **adopt an open VLM, build the action stack ourselves**. Why, in the next section.
 
-One cheap addition here: **implicit world modeling as an auxiliary objective**. The policy aligns its features with latent embeddings of future observations while generating actions, costing only a few extra tokens on a standard VLA [[arXiv:2505.15659]](https://arxiv.org/abs/2505.15659). It delivers up to 26% on multitask simulation benchmarks, but the property that matters more to us is different: **it lets first-person human video with no action labels join co-training** [[arXiv:2505.15659]](https://arxiv.org/abs/2505.15659). Part 3's data map uses that channel directly.
+## 2.3 The technical selection — VLA as the main line, with world modelling in a defined place
 
-## 2.3 Pretrain — go big first, deliberately
+![The two routes inherit different priors; world modelling appears at two price points](figures/f18-world-model.png)
+
+This section answers a question we get asked often, and that is often answered badly
+
+**Start with where the two routes actually diverge.** The usual framing is "train a world model from scratch versus adapt an off-the-shelf VLM," and it does not hold up: the world action model we are comparing against is itself built on a pretrained video diffusion model [[arXiv:2602.15922]](https://arxiv.org/abs/2602.15922). Both routes inherit web-scale pretraining. They diverge on *which* prior they inherit — VLA inherits a vision-language prior (semantics, instruction following, spatial reference), WAM inherits a video-generation prior (dynamics, temporal continuity).
+
+**We start from the VL prior for three reasons.** First, the product needs language-conditioned task specification, which is exactly what the VL prior is good at [[arXiv:2604.15483 §V-E]](https://arxiv.org/abs/2604.15483). Second, the VLA route has a publicly demonstrated path back to an edge budget; the world action model in its current form is 14B parameters at 7 Hz closed-loop [[arXiv:2602.15922]](https://arxiv.org/abs/2602.15922). Third and most important: **most of the benefit of world modelling is available inside a VLA system** [[arXiv:2604.15483 §V-B]](https://arxiv.org/abs/2604.15483).
+
+So world modelling has a defined place in our system. That place is not inside the backbone. It appears in two forms, separated by orders of magnitude in cost [[arXiv:2604.15483 §V-B]](https://arxiv.org/abs/2604.15483).
+
+**Form one: an auxiliary objective during training.** Implicit world modeling — the policy aligns its features with latent embeddings of future observations while generating actions, costing only a few extra tokens on a standard VLA [[arXiv:2505.15659]](https://arxiv.org/abs/2505.15659). It delivers up to 26% on multitask simulation benchmarks, but the property that matters more to us is different: **it lets first-person human video with no action labels join co-training** [[arXiv:2505.15659]](https://arxiv.org/abs/2505.15659). Part 3's data map uses that channel directly.
+
+**Form two: a subgoal generator running as a slow tier.** π0.7 attaches a separate generative model — BAGEL, 14B mixture-of-transformers, SuSIE-style initialisation [[arXiv:2604.15483 §V-B, App. D]](https://arxiv.org/abs/2604.15483). What it emits is an image of what the world looks like once this subtask is done: the training target is the observation at segment end, up to 3 views with the rear view omitted [[arXiv:2604.15483 §V-B, §VI-B]](https://arxiv.org/abs/2604.15483). The base view carries environment and object outcomes; the wrist views carry arm and gripper outcomes [[arXiv:2604.15483 §V-B]](https://arxiv.org/abs/2604.15483).
+
+Its physical form is worth stating plainly: 25 denoising steps taking 1.25 s on 4 H100s, refreshed every 4 s or on semantic-intent change, running asynchronously — the policy keeps executing while the next subgoal generates [[arXiv:2604.15483 App. D, §VII]](https://arxiv.org/abs/2604.15483). So a third rate sits above the two-rate architecture: **subgoal at roughly 0.25 Hz, policy at 5 to 30 Hz, controller at 50 Hz** [computed: 1 / 4 s refresh interval]. Calling it "a module inside the VLA" is fair at the system level and misleading at the model level — it is a separate model running at a different rate.
+
+The payoff on this channel is double. At inference, the goal-conditioned variant significantly improves cross-embodiment folding [[arXiv:2604.15483 §IX-C]](https://arxiv.org/abs/2604.15483). At training time it is more interesting: given a subgoal, the objective degenerates toward inverse dynamics and converges much faster [[arXiv:2604.15483 §V-E]](https://arxiv.org/abs/2604.15483) — so the setting that puts subgoal images on 25% of the batch is buying training efficiency [[arXiv:2604.15483 §V-E]](https://arxiv.org/abs/2604.15483).
+
+The cost belongs here too, and it is the part most often skipped: **subgoal quality is bounded by label quality, especially temporal segmentation quality** [[arXiv:2604.15483 App. C]](https://arxiv.org/abs/2604.15483). A world model does not manufacture physics knowledge out of nothing; it sits downstream of our labelling pipeline, and section 3.4 sets its ceiling.
+
+Finally, one unresolved question we should name rather than smooth over: where does the subgoal generator run on a production robot? The published approach uses 4 H100s [[arXiv:2604.15483 App. D]](https://arxiv.org/abs/2604.15483). Three possibilities — it stays in the cloud (needs connectivity, which collides with the offline duty-cycle commitment), it is distilled alongside the policy (no published work has compressed a subgoal generator), or it is training-time only and the shipped policy runs without subgoals (π0.7's goal-conditioned version is a variant; the base model does not depend on it) [[arXiv:2604.15483 §IX-C]](https://arxiv.org/abs/2604.15483). This one hangs in Part 7 alongside the teacher size, closed by measurement.
+
+## 2.4 Pretrain — go big first, deliberately
 
 This one is counterintuitive for a product whose selling point is the edge, so let us be explicit: **we do not train the small model we intend to ship** [[arXiv:2606.05737]](https://arxiv.org/abs/2606.05737).
 
 Capability appears at scale and is then preserved through distillation. The same small architecture trained from scratch does not reach the same place [[arXiv:2606.05737]](https://arxiv.org/abs/2606.05737). That is what trading compute for intelligence concretely means: push parameters, data, FLOPs and algorithmic intensity up together during pretraining, and what you buy is a capability ceiling a small model cannot reach on its own. Models that actually ship on edge products land between 450M and 690M [computed: SmolVLA lower bound, RoboTTT upper bound], but their capability comes from a larger teacher, not from piling data onto that size.
 
-We attach a measurable target to "edge", or it stays an adjective: **intelligence density**, task success per parameter per watt [computed: a combination of three disclosed quantities]. It ties the work in sections 2.6 and 2.7 to that 700 Wh battery as one chain of constraint [computed: 0.7 kWh × 1000].
+We attach a measurable target to "edge", or it stays an adjective: **intelligence density**, task success per parameter per watt [computed: a combination of three disclosed quantities]. It ties the work in sections 2.7 and 2.8 to that 700 Wh battery as one chain of constraint [computed: 0.7 kWh × 1000].
 
 One admission: **no published work gives a teacher/student size pairing for a robot foundation model** [computed: no disclosed pairing found]. We have to establish that number ourselves in P1, and it is listed in Part 7.
 
@@ -144,19 +166,19 @@ Two other starting points we rejected, with the conditions that would reverse ea
 
 **Pretraining the VLM from scratch too** gives the most complete IP story and spends early capital on a repeatedly-solved problem [[blog: HuggingFace SmolVLA]](https://huggingface.co/blog/smolvla). The reversal condition is specific: revisit when an open VLM's licensing or semantic capability becomes the bottleneck on edge success rate. Until then the same money returns more in the action stack and the compression chain.
 
-## 2.4 Post-train
+## 2.5 Post-train
 
 In: a curated high-quality subset. Out: a usable task policy. Three things: task conditioning, knowledge insulation so action training does not corrode the VLM's semantics, and sim/real co-training [[arXiv:2505.15659]](https://arxiv.org/abs/2505.15659).
 
 Short section, because it inherits almost everything from sections 2.1 and 2.2. The number to keep is the per-task data floor: a well-pretrained model fine-tunes to usable from 50 to 100 demonstrations [[blog: DeepMind on-device]](https://deepmind.google/blog/gemini-robotics-on-device-brings-ai-to-local-robotic-devices/). The collection literature independently reports 50 to 200 per task [[blog: dexset teleoperation guide]](https://dexset.ai/blogs/teleoperation-data-collection-robot-learning-complete-2026/). Two independent chains landing in the same band means the floor is real.
 
-## 2.5 The experience loop
+## 2.6 The experience loop
 
 In: fleet episodes. Out: a better policy [[arXiv:2511.19647]](https://arxiv.org/abs/2511.19647). Its position in the pipeline is here, but its mechanism gets a part of its own — because "fleet data becomes a better policy" is the single easiest claim on this path to state vaguely.
 
 The full treatment is Part 5: where reward comes from, why the algorithm is advantage-conditioned supervised training rather than policy gradient, where exploration happens, and how credit is assigned in contact-rich tasks
 
-## 2.6 The compression chain
+## 2.7 The compression chain
 
 ![The compression chain: ordering on the left, acceptance on the right](figures/f07-compression.png)
 
@@ -174,9 +196,9 @@ To be precise about what that buys: the 0.4 pt at 4 bpw is **the cost of the qua
 
 One piece of real-silicon evidence contradicting the benchmarks deserves its own line: a custom SoC ships W8A16 and states explicitly that W8A8 degrades success rate [[arXiv:2606.07383]](https://arxiv.org/abs/2606.07383). Simulation benchmarks and custom silicon disagree here, and we trust the silicon.
 
-Also worth flagging now: this section and section 2.7 rest on a thinner, more vendor-adjacent evidence base than the ones before them [[repo: FlashRT]](https://github.com/flashrt-project/FlashRT). That is not a defect, and Part 6 explains why it is precisely the stretch where original work pays.
+Also worth flagging now: this section and section 2.8 rest on a thinner, more vendor-adjacent evidence base than the ones before them [[repo: FlashRT]](https://github.com/flashrt-project/FlashRT). That is not a defect, and Part 6 explains why it is precisely the stretch where original work pays.
 
-## 2.7 The serving system
+## 2.8 The serving system
 
 ![Two rates, overlapped](figures/f08-serving.png)
 
@@ -192,7 +214,7 @@ The best published on-device result comes from hand-written kernels: π0.5 at 44
 
 Finally, power back to the battery. The only citable comparable figure is 40 W on AGX Orin [[arXiv:2604.24447]](https://arxiv.org/abs/2604.24447); different silicon, so an order-of-magnitude reference only. **Our own power target is undisclosed**, fixed by P3 measurement [computed: no comparable disclosed figure].
 
-## 2.8 Test-time adaptation and context scaling
+## 2.9 Test-time adaptation and context scaling
 
 One last thing that is easy to get wrong. Intuitively, test-time compute and an edge budget conflict: the extra inference compute comes out of the battery [[arXiv:2604.24447]](https://arxiv.org/abs/2604.24447).
 
@@ -229,7 +251,7 @@ Reality — real, reconstructed, simulated, generated — is not a third axis bu
 
 **Operations are vectors on this map.** Each moves data from a cheap region toward an expensive one, at a stated cost and with a stated distortion [[arXiv:2511.19647]](https://arxiv.org/abs/2511.19647):
 
-- **Extracting signal from indirect corpora** — filtering and annotating enormous non-robot corpora into usable semantics, affordances and task structure. Its distortion: it cannot manufacture channels it never observed — no torque, no contact, no actions in our action space [[arXiv:2505.15659]](https://arxiv.org/abs/2505.15659). The auxiliary objective in section 2.2 is the mechanism that makes this vector real.
+- **Extracting signal from indirect corpora** — filtering and annotating enormous non-robot corpora into usable semantics, affordances and task structure. Its distortion: it cannot manufacture channels it never observed — no torque, no contact, no actions in our action space [[arXiv:2505.15659]](https://arxiv.org/abs/2505.15659). The auxiliary objective in section 2.3 is the mechanism that makes this vector real.
 - **Reconstruct-and-resample** — turning a one-time real observation into a generator you can sample without limit. Its value is not visual fidelity but **rank fidelity**: whether the ordering it assigns to policies matches reality's [[blog: World Labs real-to-sim-to-real]](https://www.worldlabs.ai/blog/real-to-sim-to-real). This vector carries its own validation obligation, which is what Part 4 is about.
 - **Sim co-training and world-model rollout synthesis** — moving mass toward the on-policy side without spending robot time. Distortion: the dynamics gap [[arXiv:2602.15922]](https://arxiv.org/abs/2602.15922).
 - **Embodiment adapters and action normalisation** — moving mass up the grounding axis. The cheapest vector on the map, and the whole reason public cross-embodiment data has any value [[arXiv:2602.18397]](https://arxiv.org/abs/2602.18397).
@@ -440,12 +462,13 @@ Naming the unknowns and attaching an experiment to each is worth more than confi
 - **Whether a fleet this size yields sufficient on-policy data.** No public data relates fleet size to improvement [computed: no disclosed relationship found]. A direct output of P2.
 - **Policy transfer across venue types.** Unmeasured at fleet scale [computed: no disclosed measurement found]. P4's central question.
 - **End-to-end photon-to-torque latency.** Every published latency decomposition omits this segment [[arXiv:2602.18397]](https://arxiv.org/abs/2602.18397). Instrumentation work in P3.
+- **Where the subgoal generator runs on a production robot.** The published approach uses 4 H100s and nobody has published a compressed variant [[arXiv:2604.15483 App. D]](https://arxiv.org/abs/2604.15483). Cloud, distilled, or training-time only — decided in P3 against the offline duty cycle.
 
-## Open bet: world action models
+## Open bet: the world action model as the policy itself
 
-We are betting on the VLA line. That is a choice, and it should be presented as a bet that can be overturned [[arXiv:2602.15922]](https://arxiv.org/abs/2602.15922).
+Be precise about what is being bet on here. We are not betting against world modelling — section 2.3 puts it in the system at two price points, and both are committed [[arXiv:2604.15483 §V-B]](https://arxiv.org/abs/2604.15483). What remains open is narrower: whether the world model should *be* the policy rather than serve it.
 
-The alternative is the world action model: learning physical dynamics on a pretrained video-diffusion backbone by predicting future world states and actions. Reported real-robot results show over 2× the generalisation of contemporary VLAs to new tasks and environments [[arXiv:2602.15922]](https://arxiv.org/abs/2602.15922). That number is hard to ignore.
+That is the world action model: learning physical dynamics on a pretrained video-diffusion backbone by predicting future world states and actions [[arXiv:2602.15922]](https://arxiv.org/abs/2602.15922). Reported real-robot results show over 2× the generalisation of contemporary VLAs to new tasks and environments [[arXiv:2602.15922]](https://arxiv.org/abs/2602.15922). That number is hard to ignore, and we are not ignoring it.
 
 The reason for declining is the edge, not capability: 14B parameters running closed-loop at 7 Hz [[arXiv:2602.15922]](https://arxiv.org/abs/2602.15922). That is an order of magnitude above what a 0.7 kWh humanoid can serve on board [[blog: carnewschina 2026-04-13]](https://carnewschina.com/2026/04/13/chery-begins-online-sales-of-humanoid-robot-with-a-0-7-kwh-battery-at-41400-usd/), and the rate is below what the two-rate architecture needs from its fast path [[arXiv:2604.24447]](https://arxiv.org/abs/2604.24447).
 

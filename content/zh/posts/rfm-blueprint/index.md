@@ -1,7 +1,7 @@
 ---
 title: "RFM 实施蓝图：模型工厂与数据飞轮"
 date: 2026-08-15
-draft: true
+draft: false
 ---
 
 ## 我们要一起建的东西
@@ -18,7 +18,7 @@ foundation model 意味着能力必须从大模型范式里长出来——把参
 
 端侧意味着最终交付物必须活在一块 0.7 kWh 电池和一颗 SoC 的预算里 [[blog: carnewschina 2026-04-13]](https://carnewschina.com/2026/04/13/chery-begins-online-sales-of-humanoid-robot-with-a-0-7-kwh-battery-at-41400-usd/)。
 
-这两件事表面上互相矛盾，解法是把它们拆成先后两段：**先用大模型范式把智能做出来，再把它压回端侧。** 压回去这一段不是单一技术，而是一整条链路——以 on-policy distillation 为主的 compression / distillation 技术栈、训练与推理 infra 优化、推理侧的软件优化，以及软硬件协同设计 [[arXiv:2604.00626]](https://arxiv.org/abs/2604.00626)。整份材料的结构就是这条逻辑：第 2 部分讲怎么把它做大，2.6 节与 2.7 节讲怎么压回去，第 6 部分讲这两段在时间上怎么排。
+这两件事表面上互相矛盾，解法是把它们拆成先后两段：**先用大模型范式把智能做出来，再把它压回端侧。** 压回去这一段不是单一技术，而是一整条链路——以 on-policy distillation 为主的 compression / distillation 技术栈、训练与推理 infra 优化、推理侧的软件优化，以及软硬件协同设计 [[arXiv:2604.00626]](https://arxiv.org/abs/2604.00626)。整份材料的结构就是这条逻辑：第 2 部分讲怎么把它做大，2.7 节与 2.8 节讲怎么压回去，第 6 部分讲这两段在时间上怎么排。
 
 还有一条贯穿始终的规矩：凡是给出的数字都能追到一行出处，或者追到一次基于出处的算术；追不到的，我们直接说这个还不知道，不编 [computed: 本文的取数规则]。
 
@@ -94,7 +94,7 @@ foundation model 意味着能力必须从大模型范式里长出来——把参
 
 监督分三路，互不相同。**backbone 由 FAST token 的交叉熵监督**——动作先经离散余弦变换、量化，再用 byte-pair 编码进语言词表，700 个 token 压到 53，词表 1024；这些 token 只在训练时存在，推理时不产生 [[arXiv:2501.09747]](https://arxiv.org/abs/2501.09747)。**action expert 由 flow matching 监督**，噪声沿直线插值到记录下来的那个 chunk [[arXiv:2410.24164]](https://arxiv.org/abs/2410.24164)。**value head 由结局与接管监督**，按任务用最大 episode 长度归一化到 -1 到 0 区间 [[arXiv:2511.14759]](https://arxiv.org/abs/2511.14759)。
 
-中间那道**防火墙**是这套设计的关键：action expert 的梯度不回流进 backbone [[arXiv:2604.15483 §III]](https://arxiv.org/abs/2604.15483)。没有它，动作训练会把 VLM 的语义能力磨掉——这就是 2.4 节说的 knowledge insulation 在梯度层面的具体形态。
+中间那道**防火墙**是这套设计的关键：action expert 的梯度不回流进 backbone [[arXiv:2604.15483 §III]](https://arxiv.org/abs/2604.15483)。没有它，动作训练会把 VLM 的语义能力磨掉——这就是 2.5 节说的 knowledge insulation 在梯度层面的具体形态。
 
 训练时还有一组刻意的遮盖：25% 的 batch 带 subgoal 图像，15% 的 batch 把 episode 元数据整体丢掉，后视相机以 0.3 的概率被丢弃 [[arXiv:2604.15483 §V-E]](https://arxiv.org/abs/2604.15483)。这些遮盖的用意是逼模型在信息不全时也能工作——部署时这些字段本来就经常缺。
 
@@ -126,15 +126,37 @@ manifest 的形状是"来源 × 阶段"的权重表，不是文件列表 [[arXiv
 
 参考形态取 GR00T N1.7 这一类：一个开源 VLM backbone，加一个独立设计的 DiT action head，公开规模 538M 参数、16 层 [[arXiv:2607.15275]](https://arxiv.org/abs/2607.15275)。我们选的起点就是这个——**沿用开源 VLM，action stack 自己做**。为什么这么选，下一节说。
 
-这里再加一件成本极低的事：**implicit world modeling 作为辅助目标**。让 policy 生成动作的同时去对齐未来观测的 latent 表示，只需给标准 VLA 加几个 token [[arXiv:2505.15659]](https://arxiv.org/abs/2505.15659)。它在多任务仿真基准上最高带来 26% 提升，但对我们更要紧的是另一个性质：**它让没有动作标签的第一人称人类视频也能参与 co-training** [[arXiv:2505.15659]](https://arxiv.org/abs/2505.15659)。第 3 部分的数据地图会直接用这条通路。
+## 2.3 技术选型：我们主线走 VLA，同时把 world model 放在确定的位置
 
-## 2.3 Pretrain：先做大，这是刻意的
+![两条路线继承的先验不同；world model 出现在两个价码上](figures/f18-world-model.png)
+
+这一节要回答一个经常被问、也经常被答歪的问题
+
+**先说两条路线的真正分歧点在哪。** 常见的说法是"从头训一个 world model，还是拿现成的 VLM 来改"，这个说法站不住：作为对照的 world action model 本身也建立在预训练的视频扩散模型之上 [[arXiv:2602.15922]](https://arxiv.org/abs/2602.15922)。两条路线都继承 web-scale 预训练，分歧在于继承哪一种先验——VLA 继承 vision-language 先验（语义、指令跟随、空间指称），WAM 继承 video-generation 先验（动力学、时间连贯性）。
+
+**我们从 VL 先验起步，理由有三条。** 第一，产品要的是语言条件化的任务指定，这正是 VL 先验的强项 [[arXiv:2604.15483 §V-E]](https://arxiv.org/abs/2604.15483)。第二，VLA 这条路已经有一条被公开验证过、能压回端侧预算的链路；而 world action model 目前的形态是 14B 参数、闭环 7 Hz [[arXiv:2602.15922]](https://arxiv.org/abs/2602.15922)。第三条最要紧：**world model 的大部分收益，可以在 VLA 系统内部拿到** [[arXiv:2604.15483 §V-B]](https://arxiv.org/abs/2604.15483)。
+
+所以 world model 在我们的系统里有确定的位置，只是它不在 backbone 里面。它以两种形态出现，价码差了几个数量级 [[arXiv:2604.15483 §V-B]](https://arxiv.org/abs/2604.15483)。
+
+**形态一：训练期的辅助目标。** implicit world modeling——让 policy 生成动作的同时去对齐未来观测的 latent 表示，只需给标准 VLA 加几个 token [[arXiv:2505.15659]](https://arxiv.org/abs/2505.15659)。它在多任务仿真基准上最高带来 26% 提升，但对我们更要紧的是另一个性质：**它让没有动作标签的第一人称人类视频也能参与 co-training** [[arXiv:2505.15659]](https://arxiv.org/abs/2505.15659)。第 3 部分的数据地图会直接用这条通路。
+
+**形态二：慢档的 subgoal 生成器。** π0.7 的做法是挂一个独立的生成模型——BAGEL，14B mixture-of-transformers，SuSIE 式初始化 [[arXiv:2604.15483 §V-B, App. D]](https://arxiv.org/abs/2604.15483)。它产出的是"这个子任务完成时世界长什么样"的图像：训练目标就是该段结束时的那一帧观测，最多 3 个视角，后视图省略 [[arXiv:2604.15483 §V-B, §VI-B]](https://arxiv.org/abs/2604.15483)。base 视角承载环境与物体的结果，腕部视角承载手臂与夹爪的结果 [[arXiv:2604.15483 §V-B]](https://arxiv.org/abs/2604.15483)。
+
+它的物理形态值得说清楚：25 步去噪、在 4 张 H100 上耗时 1.25 s，每 4 s 或语义意图变化时刷新一次，与策略异步运行——策略不等它，边执行边等下一张 [[arXiv:2604.15483 App. D, §VII]](https://arxiv.org/abs/2604.15483)。于是两档架构之上又多了一档：**subgoal 约 0.25 Hz、policy 5 到 30 Hz、控制器 50 Hz** [computed: 1 / 4 s refresh interval]。把它称作"VLA 里的一个模块"，在系统层面成立，在模型层面会误导——它是跑在另一个速率上的独立模型。
+
+这条通路的收益是双份的。推理侧，goal-conditioned 变体显著改善了跨本体的叠衣服任务 [[arXiv:2604.15483 §IX-C]](https://arxiv.org/abs/2604.15483)。训练侧更有意思：给定 subgoal 之后，目标退化成接近逆动力学的问题，收敛快得多 [[arXiv:2604.15483 §V-E]](https://arxiv.org/abs/2604.15483)——所以"25% 的 batch 带 subgoal 图像"这条设置，买的其实是训练效率 [[arXiv:2604.15483 §V-E]](https://arxiv.org/abs/2604.15483)。
+
+代价也要讲，而且这一条最容易被略过：**subgoal 的质量受限于标注质量，尤其是时间分割的质量** [[arXiv:2604.15483 App. C]](https://arxiv.org/abs/2604.15483)。world model 不会凭空多出物理知识，它挂在我们标注管线的下游——3.4 节那套东西直接决定它的上限。
+
+最后是一个必须承认的未决问题：subgoal 生成器在量产机器人上到底跑在哪里？公开做法用的是 4 张 H100 [[arXiv:2604.15483 App. D]](https://arxiv.org/abs/2604.15483)。三种可能——留在云端（需要连通性，与脱机时长的承诺冲突）、跟策略一起蒸馏（没有任何公开工作压缩过 subgoal 生成器）、或者只在训练期用，出货策略不带 subgoal（π0.7 的 goal-conditioned 版本是一个变体，基础模型并不依赖它）[[arXiv:2604.15483 §IX-C]](https://arxiv.org/abs/2604.15483)。这一条挂在第 7 部分，和教师规模一样，由实测关掉。
+
+## 2.4 Pretrain：先做大，这是刻意的
 
 这一节的逻辑对一个主打端侧的产品是反直觉的，所以请让我说清楚：**我们不训练最终要出货的那个小模型** [[arXiv:2606.05737]](https://arxiv.org/abs/2606.05737)。
 
 能力先在规模上出现，再通过蒸馏保留下来。同样的小架构从零训练，到不了同一个位置 [[arXiv:2606.05737]](https://arxiv.org/abs/2606.05737)。这就是用计算换智能的具体含义：在预训练阶段把参数、数据、FLOPs 与算法强度一起推上去，换来的是一个小模型自己练不出来的能力上限。端侧真正出货的模型落在 450M 到 690M 这个区间 [computed: SmolVLA 下界，RoboTTT 上界]，但它们的能力来自更大的教师，而不是在这个尺寸上直接堆数据。
 
-我们给"端侧"配一个可度量的目标，否则它永远只是个形容词：**intelligence density**，每参数每瓦的任务成功率 [computed: 三项已披露量的组合]。它把 2.6 节和 2.7 节的工作，和那块 700 Wh 电池串成同一条约束链 [computed: 0.7 kWh × 1000]。
+我们给"端侧"配一个可度量的目标，否则它永远只是个形容词：**intelligence density**，每参数每瓦的任务成功率 [computed: 三项已披露量的组合]。它把 2.7 节和 2.8 节的工作，和那块 700 Wh 电池串成同一条约束链 [computed: 0.7 kWh × 1000]。
 
 有一件事要坦白：**目前没有任何公开工作给出过 robot foundation model 的教师/学生规模配对** [computed: 检索未发现已披露配对]。这个数字得我们自己在 P1 定出来，它挂在第 7 部分。
 
@@ -144,19 +166,19 @@ manifest 的形状是"来源 × 阶段"的权重表，不是文件列表 [[arXiv
 
 **连 VLM 一起从零预训练**，IP 叙事最完整，但把早期资金投在一个已经被反复解决的问题上 [[blog: HuggingFace SmolVLA]](https://huggingface.co/blog/smolvla)。翻案条件很具体：当开源 VLM 的许可条款或语义能力成为端侧成功率的瓶颈时重新评估。在那之前，同样的钱花在 action stack 和压缩链路上回报更高。
 
-## 2.4 Post-train
+## 2.5 Post-train
 
 输入精选高质量子集，输出可用的任务策略。三件事：任务条件化、knowledge insulation（防止动作训练腐蚀 VLM 的语义能力）、sim 与 real 的 co-training [[arXiv:2505.15659]](https://arxiv.org/abs/2505.15659)。
 
 这节短，因为它几乎全继承自 2.1 节和 2.2 节。要记的数字只有每任务的数据地板：一个预训练充分的模型，50 到 100 条演示就能微调到可用 [[blog: DeepMind on-device]](https://deepmind.google/blog/gemini-robotics-on-device-brings-ai-to-local-robotic-devices/)。采集侧文献独立给出的是每任务 50 到 200 条 [[blog: dexset teleoperation guide]](https://dexset.ai/blogs/teleoperation-data-collection-robot-learning-complete-2026/)。两条独立证据落在同一区间，这个地板可以信。
 
-## 2.5 Experience loop
+## 2.6 Experience loop
 
 输入车队跑出来的 episode，输出一个更好的策略 [[arXiv:2511.19647]](https://arxiv.org/abs/2511.19647)。它在流水线上的位置就是这里，但它的机制单独占一部分——因为"车队数据怎么变成更好的策略"这件事，是整条路线上最容易讲得含糊的一段。
 
 完整讨论在第 5 部分：奖励从哪来、为什么算法是 advantage 条件化的监督训练而不是策略梯度、探索放在哪、以及接触密集任务里的归因怎么做
 
-## 2.6 压缩链路
+## 2.7 压缩链路
 
 ![压缩链路：左边是顺序，右边是验收](figures/f07-compression.png)
 
@@ -174,9 +196,9 @@ manifest 的形状是"来源 × 阶段"的权重表，不是文件列表 [[arXiv
 
 有一条和基准文献相反的真实硅片证据值得单独记：某自研 SoC 上出货的是 W8A16，并明确指出 W8A8 会掉成功率 [[arXiv:2606.07383]](https://arxiv.org/abs/2606.07383)。仿真基准和定制硅片在这里给出不同答案，我们选择相信硅片。
 
-也在这里先说明：这一节和 2.7 节的证据基础比前面几节薄，更贴近厂商自述 [[repo: FlashRT]](https://github.com/flashrt-project/FlashRT)。这不是缺陷，第 6 部分会讲为什么它恰恰是我们该投原创的那一段。
+也在这里先说明：这一节和 2.8 节的证据基础比前面几节薄，更贴近厂商自述 [[repo: FlashRT]](https://github.com/flashrt-project/FlashRT)。这不是缺陷，第 6 部分会讲为什么它恰恰是我们该投原创的那一段。
 
-## 2.7 Serving system
+## 2.8 Serving system
 
 ![两档速率，重叠执行](figures/f08-serving.png)
 
@@ -192,7 +214,7 @@ manifest 的形状是"来源 × 阶段"的权重表，不是文件列表 [[arXiv
 
 最后把功耗接回电池。目前唯一可引用的端侧整机功耗是某方案在 AGX Orin 上的 40 W [[arXiv:2604.24447]](https://arxiv.org/abs/2604.24447)，硅片不同，只能作量级参考。**我们自己的功耗目标是未披露量**，由 P3 实测确定 [computed: 无同类已披露数据]。
 
-## 2.8 Test-time adaptation 与 context scaling
+## 2.9 Test-time adaptation 与 context scaling
 
 最后一节讲一件容易判断错的事。直觉上，test-time 计算和端侧预算天然冲突：多花的推理算力，机器人拿电池付 [[arXiv:2604.24447]](https://arxiv.org/abs/2604.24447)。
 
@@ -229,7 +251,7 @@ manifest 的形状是"来源 × 阶段"的权重表，不是文件列表 [[arXiv
 
 **操作是这张图上的向量。** 每一个操作都把数据从便宜的区域搬向昂贵的区域，都有明确成本，也都有明确失真 [[arXiv:2511.19647]](https://arxiv.org/abs/2511.19647)：
 
-- **从间接语料里提取信号**：把巨量但与机器人无关的语料，过滤标注出可用的语义、affordance 与任务结构。失真在于它造不出从未观测到的通道——没有力矩，没有接触，没有我们动作空间里的动作 [[arXiv:2505.15659]](https://arxiv.org/abs/2505.15659)。2.2 节那个辅助目标，就是让这条向量落地的机制。
+- **从间接语料里提取信号**：把巨量但与机器人无关的语料，过滤标注出可用的语义、affordance 与任务结构。失真在于它造不出从未观测到的通道——没有力矩，没有接触，没有我们动作空间里的动作 [[arXiv:2505.15659]](https://arxiv.org/abs/2505.15659)。2.3 节那个辅助目标，就是让这条向量落地的机制。
 - **重建后重采样**：把一次性的真实观测变成可以无限采样的生成器。它的价值不是画面好看，而是 **rank fidelity**——它给策略排的序，和真实世界排的序是否一致 [[blog: World Labs real-to-sim-to-real]](https://www.worldlabs.ai/blog/real-to-sim-to-real)。这条向量自带验证义务，第 4 部分专门讲。
 - **sim co-training 与 world-model rollout 合成**：不花机器人时间，把质量往 on-policy 一侧搬。失真是动力学 gap [[arXiv:2602.15922]](https://arxiv.org/abs/2602.15922)。
 - **embodiment adapter 与动作归一化**：把质量沿 grounding 轴往上搬，是这张图上最便宜的一条向量，也是跨本体公开数据之所以有价值的全部原因 [[arXiv:2602.18397]](https://arxiv.org/abs/2602.18397)。
@@ -444,12 +466,13 @@ telemetry 回流那条边决定下一轮采什么。这条边断了，飞轮就�
 - **这个规模的车队能否产生足够的 on-policy 数据。** 车队规模与提升幅度之间的关系没有公开数据 [computed: 检索未发现已披露关系]。P2 的直接产出。
 - **策略跨场景类型的迁移能力。** 车队尺度上没有被测量过 [computed: 检索未发现已披露测量]。P4 的主要问题。
 - **photon-to-torque 全链路延迟。** 每一份已发表的延迟拆解都缺这一段 [[arXiv:2602.18397]](https://arxiv.org/abs/2602.18397)。P3 的仪器工作。
+- **subgoal 生成器在量产机器人上跑在哪里。** 公开做法用 4 张 H100，也没有任何公开工作压缩过它 [[arXiv:2604.15483 App. D]](https://arxiv.org/abs/2604.15483)。留云端、跟着蒸馏、还是只在训练期用——在 P3 对着脱机时长的要求定。
 
-## Open bet：world action models
+## Open bet：把 world action model 本身当作策略
 
-我们整体押在 VLA 路线上。这是一个选择，应该被当作一个可以被推翻的赌注来讲 [[arXiv:2602.15922]](https://arxiv.org/abs/2602.15922)。
+先说清楚这里押的到底是什么。我们没有押"不要 world model"——2.3 节已经把它放进系统，两个价码上都是既定动作 [[arXiv:2604.15483 §V-B]](https://arxiv.org/abs/2604.15483)。留着没定的是更窄的一件事：world model 应该**成为**策略，还是服务于策略。
 
-另一条路线是 world action model：在预训练的视频扩散模型上，通过预测未来世界状态与动作来学习物理动力学。已报告的真机结果是，对新任务与新环境的泛化能力超过同期 VLA 的 2 倍 [[arXiv:2602.15922]](https://arxiv.org/abs/2602.15922)。这个数字很难忽视。
+前者就是 world action model：在预训练的视频扩散模型上，通过预测未来世界状态与动作来学习物理动力学 [[arXiv:2602.15922]](https://arxiv.org/abs/2602.15922)。已报告的真机结果是，对新任务与新环境的泛化能力超过同期 VLA 的 2 倍 [[arXiv:2602.15922]](https://arxiv.org/abs/2602.15922)。这个数字很难忽视，我们也没有忽视它。
 
 暂不押注的理由是端侧，不是能力：该模型规模 14B，闭环控制率 7 Hz [[arXiv:2602.15922]](https://arxiv.org/abs/2602.15922)。这比一台 0.7 kWh 的人形机器人能在机上服务的量级高一个数量级 [[blog: carnewschina 2026-04-13]](https://carnewschina.com/2026/04/13/chery-begins-online-sales-of-humanoid-robot-with-a-0-7-kwh-battery-at-41400-usd/)，速率也低于两档架构对快档的要求 [[arXiv:2604.24447]](https://arxiv.org/abs/2604.24447)。
 

@@ -1,11 +1,7 @@
 ---
 title: "RFM 实施蓝图 —— Pitch Deck"
 date: 2026-08-15
-draft: true
----
-
-九张主线，四张备用。每张一图三行：逻辑从图上就能读出来，文字只负责点名增量 [computed: 本 deck 的设计约束]。
-
+draft: false
 ---
 
 ## 1 —— 定位：端侧 robotic foundation model
@@ -48,7 +44,18 @@ draft: true
 
 ---
 
-## 5 —— 数据地图：我们怎么想数据这件事
+## 5 —— 技术选型：VLA 是主线，world model 有确定的位置
+
+![](figures/f18-world-model.png)
+
+- 两条路线都继承 web-scale 预训练，分歧在继承哪一种先验：VLA 拿 vision-language 先验，WAM 拿 video-generation 先验。说"从头训 WM vs 用现成 VLM"是个假对立 [[arXiv:2602.15922]](https://arxiv.org/abs/2602.15922)
+- 我们从 VL 先验起步，因为产品要的是语言条件化的任务指定，而且这条路已经有被公开验证过、能压回端侧的链路 [[arXiv:2604.15483 §V-E]](https://arxiv.org/abs/2604.15483)
+- **world model 我们照用，只是不放在 backbone 里**：训练期的辅助目标只花几个 token；subgoal 生成器是慢档——0.25 Hz，与 5 到 30 Hz 的策略异步跑，产出"这个子任务做完时世界长什么样" [[arXiv:2604.15483 §V-B]](https://arxiv.org/abs/2604.15483)
+- 代价说清楚：subgoal 的质量受限于时间分割标注的质量。它挂在标注管线下游，不是凭空多出的物理知识 [[arXiv:2604.15483 App. C]](https://arxiv.org/abs/2604.15483)
+
+---
+
+## 6 —— 数据地图：我们怎么想数据这件事
 
 ![](figures/f04-data-map.png)
 
@@ -58,7 +65,7 @@ draft: true
 
 ---
 
-## 6 —— 数据飞轮
+## 7 —— 数据飞轮
 
 ![](figures/f09-flywheel.png)
 
@@ -68,7 +75,7 @@ draft: true
 
 ---
 
-## 7 —— 评估：整条路线的瓶颈
+## 8 —— 评估：整条路线的瓶颈
 
 ![](figures/f11-eval.png)
 
@@ -78,7 +85,7 @@ draft: true
 
 ---
 
-## 8 —— 强化学习：经验循环怎么真的转起来
+## 9 —— 强化学习：经验循环怎么真的转起来
 
 ![](figures/f14-experience-loop.png)
 
@@ -88,7 +95,7 @@ draft: true
 
 ---
 
-## 9 —— 路线图
+## 10 —— 路线图
 
 ![](figures/f12-roadmap-public.png)
 
@@ -97,9 +104,6 @@ draft: true
 - P0 到 P2 用的是主流大模型 post-training 与 RL 技术栈，已被公开复现；P3 是重心——把大模型压回端侧，是我们必须自己做成、也决定产品能否成立的一段 [[repo: FlashRT]](https://github.com/flashrt-project/FlashRT)
 
 ---
-
-# 备用（问答时调取）
-
 ## B1 —— 压缩链路：怎么压回端侧
 
 ![](figures/f07-compression.png)
@@ -109,6 +113,8 @@ draft: true
 - 量化买到的是显存不是速度——通用工具链只量化语言 backbone，而瓶颈在 action head [[arXiv:2605.24011]](https://arxiv.org/abs/2605.24011)
 - 2.5 bpw 是拐点，2 bpw 崩到 48.0%，起步规则是停在 4 bpw；但那 0.4 pt 只是量化单步的代价，链路总预算由 P3 实测后分配 [[arXiv:2605.24011]](https://arxiv.org/abs/2605.24011)
 
+
+---
 ## B2 —— Serving
 
 ![](figures/f08-serving.png)
@@ -117,6 +123,7 @@ draft: true
 - 同一个前向在 Jetson Thor 上 action head 占 50%，在 RTX 4090 上只占 23%——边缘侧最大的那一项正是通用量化不碰的那一项 [[arXiv:2602.18397]](https://arxiv.org/abs/2602.18397)
 - 已公开最好的端侧成绩来自手写 kernel：44.0 ms、23 Hz，越过了解析屋顶线 [[repo: FlashRT]](https://github.com/flashrt-project/FlashRT)
 
+---
 ## B3 —— 配比如何随阶段迁移
 
 ![](figures/f13-mixture-shift.png)
@@ -125,8 +132,9 @@ draft: true
 - on-policy rollout 在 P2 之前必然为零（没有自主运行的策略），之后是唯一一个成本随算力和车队扩张、不随人员编制扩张的来源 [computed: P2 之前没有自主运行的策略]
 - 它到底能占多大，取决于那条没人公开过的转化曲线和车队规模，是 P2 的直接产出 [computed: 检索未发现已披露转化曲线]
 
+---
 ## B4 —— 我们还不知道什么
 
 - 教师规模、机上功耗、我们自己的压缩悬崖位置，都由 P1 与 P3 实测确定 [computed: 全文未解决项的汇总]
 - 接管到可测提升的转化率没有公开曲线，它决定 P2 需要多大车队 [computed: 检索未发现已披露转化曲线]
-- Open bet：world action model 已报告 2 倍泛化优势，但 14B 参数、7 Hz 的形态进不了端侧预算；触发条件是压缩后能进预算的版本出现 [[arXiv:2602.15922]](https://arxiv.org/abs/2602.15922)
+- Open bet 只针对一件事：world model 该不该**成为**策略。已报告 2 倍泛化优势，但 14B 参数、7 Hz 的形态进不了端侧预算；触发条件是压缩后能进预算的版本出现 [[arXiv:2602.15922]](https://arxiv.org/abs/2602.15922)
