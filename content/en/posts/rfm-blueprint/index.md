@@ -373,11 +373,15 @@ One more thing worth saying up front: **P0 through P2 copy recipes already publi
 
 ![How the mixture shifts across phases](figures/f13-mixture-shift.png)
 
-Finally, the question left open earlier: if the data map is not a build order, what changes between phases? The weights. Public and human-sourced corpora fall from 92 at P0 to 30 at P4; our teleoperation rises from 8 to a peak of 33 at P2 then falls back to 22; on-policy rollouts climb from 0 to 48 [computed: the mix of sources available at each phase].
+Finally, the question left open earlier: if the data map is not a build order, what changes between phases? The weights [[arXiv:2511.19647]](https://arxiv.org/abs/2511.19647).
 
-The third curve matters most. It starts at zero, appears only when the flywheel closes at P2, and ends as the largest block — **the only data source on this path whose cost scales with compute and fleet size rather than with the number of operators** [[arXiv:2511.19647]](https://arxiv.org/abs/2511.19647). P4's gate reads "self-improvement without proportional operator growth" to describe exactly that curve.
+What this figure is, and is not, matters. **It gives an ordering, not shares.** We have not run this path, so any specific percentage would be invented — the figure therefore carries only four ordinal levels, unused / light / contributing / primary, the same vocabulary as the source-by-stage table in section 2.1. Exactly three things are claimed: public and human-sourced weight declines monotonically but never reaches zero; our teleoperation peaks at P2; and on-policy rollouts are necessarily zero before P2 [computed: no autonomous policy runs before P2].
 
-And keep the boundary from section 2.5 in view: on-policy data improves quality inside the existing envelope and cannot expand it [[arXiv:2511.19647]](https://arxiv.org/abs/2511.19647). So the first two curves still make up more than half the mixture at P4. Their role shifts from bulk supply to novelty injection, but they never reach zero.
+The third row matters most. Its first two cells read "unused", and that is not a plan but a structural fact: before P2 no policy runs autonomously, so on-policy data cannot physically exist [computed: no autonomous policy runs before P2]. Once it does exist, it is **the only data source on this path whose cost scales with compute and fleet size rather than with the number of operators** [[arXiv:2511.19647]](https://arxiv.org/abs/2511.19647). P4's gate reads "self-improvement without proportional operator growth" to describe exactly that.
+
+How large a share it reaches by P4, we do not know — that depends on the conversion curve nobody has published, listed in Part 7, and on fleet size. It is a direct output of P2, not something this document can pretend to compute [computed: no disclosed conversion curve found].
+
+And keep the boundary from section 5.5 in view: on-policy data improves quality inside the existing envelope and cannot expand it [[arXiv:2511.19647]](https://arxiv.org/abs/2511.19647). So the first two curves still make up more than half the mixture at P4. Their role shifts from bulk supply to novelty injection, but they never reach zero.
 
 ---
 
