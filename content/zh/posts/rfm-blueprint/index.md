@@ -26,6 +26,8 @@ draft: false
 
 车队让循环闭合。机器人拿策略去干活，干活产生 episode，episode 训出更好的策略。真正在增值的是这个循环，而不是循环里任何一次交付 [[arXiv:2511.19647]](https://arxiv.org/abs/2511.19647)。
 
+这套循环你们并不陌生。车队采集、云端自动标注、大规模训练、仿真验证、OTA 推送加 A/B——智能驾驶那条数据闭环已经把它跑通过一遍 [[arXiv:2511.19647]](https://arxiv.org/abs/2511.19647)。所以下面的内容里，凡是和你们已有做法一致的地方我们会一笔带过，真正要讲的是三处搬不动的地方：数据从"规模化采集"变成"组合泛化"（3.1 节）、仿真从"几何够真"变成"接触够真"（第 4 部分）、以及失败信号从离散事件变成连续过程（第 5 部分）。
+
 中间那个器官是 **evaluation**。它两头卡：没筛过的模型不许上车；它对失败的分析又决定下一轮采什么。我们把它画在两个工厂中间，因为它两边都属于 [[blog: World Labs real-to-sim-to-real]](https://www.worldlabs.ai/blog/real-to-sim-to-real)。
 
 有两个数字从第一天起就压在所有设计上：电池 0.7 kWh，续航 2 h [[blog: carnewschina 2026-04-13]](https://carnewschina.com/2026/04/13/chery-begins-online-sales-of-humanoid-robot-with-a-0-7-kwh-battery-at-41400-usd/)。推理多耗一瓦，机器人就少干一会儿活。还有第三个：单机每小时吐出 128 GB/h 原始传感数据，没有任何回传链路吃得下 [computed: 35.665 MB/s × 3600]。这几条约束后面会反复出现。
@@ -84,7 +86,7 @@ manifest 的形状是"来源 × 阶段"的权重表，不是文件列表 [[arXiv
 | 自有 on-policy rollout | 不用 | 不用 | 主力 |
 | 重建场景 | 不用 | 参与 | 评估与失败搜索 |
 
-这张表为什么长成这样，第 3 部分的数据地图会解释；五个阶段上的具体数值，第 5 部分给 [computed: 见 f04 与 f13]。
+这张表为什么长成这样，第 3 部分的数据地图会解释；五个阶段上的具体数值，第 6 部分给 [computed: 见 f04 与 f13]。
 
 ## 2.2 架构与冻结的 API
 
@@ -102,7 +104,7 @@ manifest 的形状是"来源 × 阶段"的权重表，不是文件列表 [[arXiv
 
 我们给"端侧"配一个可度量的目标，否则它永远只是个形容词：**intelligence density**，每参数每瓦的任务成功率 [computed: 三项已披露量的组合]。它把 2.6 节和 2.7 节的工作，和那块 700 Wh 电池串成同一条约束链 [computed: 0.7 kWh × 1000]。
 
-有一件事要坦白：**目前没有任何公开工作给出过 robot foundation model 的教师/学生规模配对** [computed: 检索未发现已披露配对]。这个数字得我们自己在 P1 定出来，它挂在第 6 部分。
+有一件事要坦白：**目前没有任何公开工作给出过 robot foundation model 的教师/学生规模配对** [computed: 检索未发现已披露配对]。这个数字得我们自己在 P1 定出来，它挂在第 7 部分。
 
 起点上还有两条路我们否掉了，理由和什么条件下会翻案，一并说明 [[arXiv:2607.15275]](https://arxiv.org/abs/2607.15275)。
 
@@ -118,13 +120,9 @@ manifest 的形状是"来源 × 阶段"的权重表，不是文件列表 [[arXiv
 
 ## 2.5 Experience loop
 
-输入车队跑出来的 episode，带接管标记和结局；输出一个更好的策略 [[arXiv:2511.19647]](https://arxiv.org/abs/2511.19647)。先从异构经验里学一个 value 函数，再用 advantage 条件化训练策略。
+输入车队跑出来的 episode，输出一个更好的策略 [[arXiv:2511.19647]](https://arxiv.org/abs/2511.19647)。它在流水线上的位置就是这里，但它的机制单独占一部分——因为"车队数据怎么变成更好的策略"这件事，是整条路线上最容易讲得含糊的一段。
 
-信息增量在信号来源：**操作员按下接管的那一刻，就是最便宜的 reward signal**。不用标注，不用设计奖励函数，而且它天然长在真实分布上 [[arXiv:2511.19647]](https://arxiv.org/abs/2511.19647)。我们在第 1 部分把接管标记写进 Episode Contract，就是为了让这条通路到 P2 时不需要动硬件。
-
-它不适用的地方也要说清楚。experience loop 只在策略已经尝试过的范围内提升质量，扩不出这个范围 [[arXiv:2511.19647]](https://arxiv.org/abs/2511.19647)。新行为、新场景、新物体，仍然只能靠人类来源的语料注入。把这一点讲反，是这类路线图最常见的过度承诺，我们不打算这么讲。
-
-还有一个未知量：**接管到可测提升之间的转化率，没有任何公开曲线** [computed: 检索未发现已披露转化曲线]。它决定 P2 需要多大车队，同样挂在第 6 部分。
+完整讨论在第 5 部分：奖励从哪来、为什么算法是 advantage 条件化的监督训练而不是策略梯度、探索放在哪、以及接触密集任务里的归因怎么做
 
 ## 2.6 压缩链路
 
@@ -140,7 +138,7 @@ manifest 的形状是"来源 × 阶段"的权重表，不是文件列表 [[arXiv
 
 有一条和基准文献相反的真实硅片证据值得单独记：某自研 SoC 上出货的是 W8A16，并明确指出 W8A8 会掉成功率 [[arXiv:2606.07383]](https://arxiv.org/abs/2606.07383)。仿真基准和定制硅片在这里给出不同答案，我们选择相信硅片。
 
-也在这里先说明：这一节和 2.7 节的证据基础比前面几节薄，更贴近厂商自述 [[repo: FlashRT]](https://github.com/flashrt-project/FlashRT)。这不是缺陷，第 5 部分会讲为什么它恰恰是我们该投原创的那一段。
+也在这里先说明：这一节和 2.7 节的证据基础比前面几节薄，更贴近厂商自述 [[repo: FlashRT]](https://github.com/flashrt-project/FlashRT)。这不是缺陷，第 6 部分会讲为什么它恰恰是我们该投原创的那一段。
 
 ## 2.7 Serving system
 
@@ -202,6 +200,10 @@ manifest 的形状是"来源 × 阶段"的权重表，不是文件列表 [[arXiv
 
 整个数据系统要做的事，一句话：**把概率质量搬到当前训练阶段需要的那个区域，并让单位有效信号的成本最低** [[arXiv:2511.19647]](https://arxiv.org/abs/2511.19647)。
 
+这里要修正一个从自动驾驶带过来的直觉。在车上，数据的难点是长尾——罕见场景出现频率低，所以要靠车队规模去撞。在机器人上，难点换了性质：**不是长尾，是组合泛化**。任务空间由动作、物体、环境、目标四个维度的组合张成 [computed: 四个维度的组合]，二十个杯子都能抓，换一个透明带水珠的玻璃杯就掉——因为它同时改变了视觉、摩擦和形变三项。已有的真机基准就是按这个结构搭的：把桌面操作拆成原子技能，用 30 个原子任务训练，再用 24 个留出的组合任务测泛化 [[arXiv:2606.16826]](https://arxiv.org/abs/2606.16826)。
+
+这条区别直接决定采集策略。长尾问题靠"多跑"解决；组合泛化靠"跑得杂"解决——同样的机器人小时数，覆盖更多的物体×环境×目标组合，比在同一个组合上多刷一百遍值钱得多 [[arXiv:2510.13149]](https://arxiv.org/abs/2510.13149)。
+
 有一条边界必须写死：**我们自己本体上、带动作 grounding 的真实数据是必需品，这张图上没有任何操作能把它制造出来** [[arXiv:2604.15483 §3]](https://arxiv.org/abs/2604.15483)。每条向量最终都要拿它当锚点，第 4 部分的 rank fidelity 验证离了它根本做不了。这也是你们那支在跑的车队，为什么是整件事里最难被替代的一块。
 
 ![哪一类数据喂哪一个阶段](figures/f05-info-flow.png)
@@ -217,6 +219,8 @@ manifest 的形状是"来源 × 阶段"的权重表，不是文件列表 [[arXiv
 单台机器人未过滤的传感数据率是 35.665 MB/s，在线压缩后 0.213 MB/s，压掉 99.4% [[blog: Trossen robotic data pipeline]](https://www.trossenrobotics.com/post/robotic-data-pipeline-sensor-streams-to-training-datasets)。换成小时是 128 GB/h [computed: 35.665 MB/s × 3600]，单机一天约 3 TB/day [computed: 128 GB/h × 24 h]。按 300 台车队、每天 8 h 班次算，是 307 TB/day [computed: 128 GB/h × 8 h × 300]。没有任何回传链路吃得下。
 
 所以分流必须做在机器人本体上，四层：所有传感数据先进一个很短的环形缓冲；只有被触发标记的片段才落盘；落盘的片段在机上编码；充电时择机上传 [[blog: Trossen robotic data pipeline]](https://www.trossenrobotics.com/post/robotic-data-pipeline-sensor-streams-to-training-datasets)。触发条件四类——接管、失败、novelty 分数超阈，以及一份随机配额。
+
+还有第五类值得单独说，因为它是从你们那套数据闭环里直接搬得动的：**影子模式**。策略在后台照常推理，但不驱动电机；它的输出和当时真正执行的动作（遥操作者的，或者上一版策略的）一比对，分歧本身就是采集触发条件 [[arXiv:2511.19647]](https://arxiv.org/abs/2511.19647)。它的好处是这条信号连续、自动、不占用操作员任何额外动作——在第 5 部分里，它还会作为奖励信号出现。
 
 那份随机配额不是可选项。**没有它，留下来的数据全部由失败构成，模型学到的是一个永远出错的世界** [[arXiv:2511.19647]](https://arxiv.org/abs/2511.19647)。这是分流设计里唯一反直觉的地方，也是工程实现中最容易被砍掉的地方。
 
@@ -282,9 +286,81 @@ telemetry 回流那条边决定下一轮采什么。这条边断了，飞轮就�
 
 如果 P1 测出来达不到这个下限，路线不会中止，而是换一条更贵的通道：sim 退化为失败搜索工具，排序仍由真机决定，代价是每个 checkpoint 的评估周期按 387 次试验的量级重估 [computed: two-proportion test]。我们现在就把这条备用通道摆出来，因为它决定 P2 的节奏——提前规划，好过在 P1 结束时才发现。
 
+还有一条来自真机基准的警告要一并接受：仿真里的**绝对成功率**越来越不能作为真机可部署性的证据——高容量策略会很快把仿真基准吃透，而真实世界的接触、感知与执行难度并没有跟着上去 [[arXiv:2606.16826]](https://arxiv.org/abs/2606.16826)。这和我们上面的主张并不冲突，但边界要划清楚：**我们依赖的是仿真的排序能力，不是它的绝对分数**。所以放行条件写的是 rank correlation，不是"仿真成功率达到多少"。这两者被混为一谈，是这套方法最容易出错的地方。
+
+另一件事也要说明：仿真里最难做真的不是画面，是**接触**。抓取、拧、插、折这类任务的价值几乎全部发生在接触发生的那一瞬间，而摩擦、形变、接触点迁移上的微小偏差就足以让真机结果和仿真结果分道扬镳 [[arXiv:2606.16826]](https://arxiv.org/abs/2606.16826)。所以场景重建的验收标准应该盯住接触真实性，而不是渲染质量——这一点在第 5 部分的归因问题上还会再出现一次。
+
 ---
 
-# 第 5 部分 —— 路线图
+# 第 5 部分 —— 强化学习：经验循环怎么真的转起来
+
+![经验循环真正怎么转](figures/f14-experience-loop.png)
+
+前面反复提到"车队数据让策略变好"。这一部分把这句话拆开，因为它是整条路线上最容易讲得含糊的一段
+
+## 5.1 为什么不能直接把 RL 教科书搬上车队
+
+真机上有三个硬约束，每一个都会让标准做法失效 [[arXiv:2408.03539]](https://arxiv.org/abs/2408.03539)。
+
+**不能 reset。** 教科书里的 RL 假设可以把环境重置到初始状态，重开一局。客户现场没有这个操作——杯子倒了就是倒了，抽屉开了就是开了。重置本身要靠人，而人的时间正是我们想省的那一项 [[arXiv:2408.03539]](https://arxiv.org/abs/2408.03539)。
+
+**不能自由探索。** 探索意味着故意执行没有把握的动作。在真实场景里，这等于故意制造安全风险和硬件磨损，而且发生在客户面前 [ref. contact-rich RL review, 2026]。
+
+**环境不给奖励。** 没有任何一个真实场景会返回一个标量分数。稀疏的结局奖励信号弱、延迟高；手写稠密奖励则费人力，而且换个任务就得重来 [[arXiv:2606.22027]](https://arxiv.org/abs/2606.22027)。
+
+三条合起来的结论：**on-policy 的策略梯度方法（PPO 那一类）在车队上不可行** [computed: 由本节三条约束推出]。我们要的不是把 RL 搬上去，是把 RL 想解决的问题用车队能提供的东西重新表达一遍。
+
+## 5.2 奖励从哪来：四种信号，按成本与歧义排序
+
+既然环境不给奖励，奖励就得被构造出来。我们用四种信号，它们的成本和歧义各不相同 [computed: outcome, shadow-mode disagreement, takeover, force attribution]。
+
+**任务结局。** 成功还是失败，明确，但稀疏。在一个十几步的长程任务里，一个末端的失败标签几乎无法告诉你是哪一步错了 [[arXiv:2604.03037]](https://arxiv.org/abs/2604.03037)。
+
+**影子模式分歧。** 策略在后台推理但不驱动电机，把它的输出和当时真正执行的动作作差 [[arXiv:2511.19647]](https://arxiv.org/abs/2511.19647)。这条信号连续、自动、不占用操作员任何额外动作，是四种里最便宜的。代价是它衡量的是"和当前行为不一致"，而不是"错"——当参考行为本身不是最优时，分歧会给出错误方向。
+
+**人工接管。** 这里必须纠正一个从自动驾驶直接搬过来会出错的直觉。在车上，接管是一个离散、明确、带时间戳的事件，可以直接当作帧级标签用。**在机器人上不是**：一次抓取失败是一个连续过程，摩擦不足、姿态规划错误、力度控制不当、视觉误检都会表现成同一个结果，而接管发生在人注意到之后，未必接近真正出错的那一帧 [computed: 机器人上的失败归因是连续过程，与离散的接管事件不同]。所以接管在这里只能当**段级**标记——"这一段有问题"——不能当帧级奖励。
+
+**力觉归因。** 上一条留下的问题由这一条解决：用 Episode Contract 里的指令力矩与触觉通道，在被标记的那一段里把失败定位到帧 [[arXiv:2604.15483 §3]](https://arxiv.org/abs/2604.15483)。接触力的突变、力与位移的不一致，比视觉更早也更明确地指出出错点。这是我们在第 1 部分坚持把指令力矩写进 contract 的第二个理由——第一个是训练接触策略，第二个就是这里。
+
+四条合起来的结构是：影子模式和结局提供廉价的、覆盖全量的粗信号；接管提供段级定位；力觉把段级收缩到帧级 [computed: 四种信号按成本与歧义的组合方式]。
+
+## 5.3 算法：为什么是 advantage 条件化的监督训练
+
+车队产生的数据是异构的 off-policy 混合体：一部分来自遥操作，一部分来自当前策略自主运行，一部分来自被接管后的人工纠正，还有一部分来自仿真。**这个混合体的行为策略密度是未知的** [computed: 车队混合遥操作、自主与干预]。
+
+这一点直接排除了一整类方法。重要性采样需要知道数据是以多大概率被产生的，才能对 off-policy 数据做无偏修正 [[arXiv:2408.03539]](https://arxiv.org/abs/2408.03539)。在这里拿不到这个密度，所以带 importance ratio 的策略梯度不能用。
+
+留下的做法是把问题改写成监督学习，分三步
+
+先用离线数据学一个价值函数 V(s)。再用实际回报减去 V(s) 得到 advantage——它衡量"这一步比该状态下的平均表现好多少"，而不是"这一步有多好"。这个相对量比绝对进度好估计得多，也更稳 [[arXiv:2604.03037]](https://arxiv.org/abs/2604.03037)。最后把 advantage 作为**条件输入**去训练策略，做的是条件密度估计；部署时把条件固定在高 advantage 上，模型就倾向于生成好的那一类动作。
+
+整个过程里没有策略梯度，也没有重要性采样。它是一次监督训练，只不过训练目标被 advantage 重新加权过了 [[arXiv:2604.03037]](https://arxiv.org/abs/2604.03037)。
+
+扩散和流匹配策略上还有一层额外的麻烦：一次动作生成要走多个去噪步，advantage 是对整个动作给的，怎么分配到每一步并不显然。已有的工程化做法是把去噪过程本身建模成一个两层 MDP，让环境层的 advantage 在去噪步之间共享 [ref. RL-100, Science Robotics 2026]。
+
+## 5.4 探索放在仿真里，验证放在真机上
+
+5.1 节的三个约束里，前两个（不能 reset、不能自由探索）在重建出来的仿真场景里全部消失 [[blog: World Labs real-to-sim-to-real]](https://www.worldlabs.ai/blog/real-to-sim-to-real)。所以分工很清楚：
+
+**仿真负责探索。** 可重置、可反事实、可大规模并行，适合做策略迭代和主动的失败搜索——去找策略会在什么条件下坏掉，而不是等它在客户现场坏给你看 [[blog: World Labs real-to-sim-to-real]](https://www.worldlabs.ai/blog/real-to-sim-to-real)。
+
+**真机负责采集与验证。** 提供 on-policy 的真实分布，以及最终的放行判断 [[arXiv:2511.19647]](https://arxiv.org/abs/2511.19647)。真机上不做探索。
+
+连接两者的是第 4 部分那个 rank fidelity [[blog: World Labs real-to-sim-to-real]](https://www.worldlabs.ai/blog/real-to-sim-to-real)。它成立，这套分工就成立；它不成立，探索的收益就无法安全地转移到真机上——这也是为什么评估器官必须建在最前面。
+
+## 5.5 这个循环会在什么地方停下来
+
+最后说清楚它的边界，因为这是最容易被过度承诺的地方
+
+**分布坍缩。** 经验循环只在策略已经尝试过的范围内提升质量。rollout 只会覆盖策略已经会做的事，advantage 只能在这些事之间排序 [[arXiv:2511.19647]](https://arxiv.org/abs/2511.19647)。所以它把包络内的东西做得更好，扩不出新包络。
+
+**所以新颖性必须持续注入。** 新行为、新场景、新物体，仍然来自第 3 部分数据地图上那两条人类来源的曲线 [[arXiv:2511.19647]](https://arxiv.org/abs/2511.19647)。这不是冷启动阶段的临时安排，是长期结构——这也是为什么 P4 的配比里，公开与人类来源语料仍然占一半以上。
+
+**真正的目标不是把一个任务刷到很高。** 是让原子技能可以被组合。一个在 30 个原子任务上都很好、但在留出的组合任务上掉下来的策略，在真实场景里没有价值 [[arXiv:2606.16826]](https://arxiv.org/abs/2606.16826)。经验循环要优化的是后者。
+
+---
+
+# 第 6 部分 —— 路线图
 
 ![路线图：按顺序排列，不按日期排列](figures/f12-roadmap-public.png)
 
@@ -309,7 +385,7 @@ telemetry 回流那条边决定下一轮采什么。这条边断了，飞轮就�
 
 ---
 
-# 第 6 部分 —— 我们还不知道什么
+# 第 7 部分 —— 我们还不知道什么
 
 把未知点名，并给每一项配上关掉它的那个实验——这比处处自信更值得相信。以下八项都从我们的 fact ledger 直接来 [computed: 本模块 FACTS.md 的 GAP 组]。
 
@@ -349,6 +425,13 @@ telemetry 回流那条边决定下一轮采什么。这条边断了，飞轮就�
 - *Characterizing VLA Models across XPUs* — arXiv:2604.24447. https://arxiv.org/abs/2604.24447
 - *Energy characterization of VLA inference* — arXiv:2607.09520. https://arxiv.org/abs/2607.09520
 - *Robot-Powered Data Flywheels* — arXiv:2511.19647. https://arxiv.org/abs/2511.19647
+- *ATOM-Bench: Atomic Skills and Compositional Generalization* — arXiv:2606.16826. https://arxiv.org/abs/2606.16826
+- *RoboHiMan: Hierarchical Evaluation for Compositional Generalization* — arXiv:2510.13149. https://arxiv.org/abs/2510.13149
+- *ARM: Advantage Reward Modeling for Long-Horizon Manipulation* — arXiv:2604.03037. https://arxiv.org/abs/2604.03037
+- *RARM: Confidence-Gated Progress Reward Modeling* — arXiv:2606.22027. https://arxiv.org/abs/2606.22027
+- *Deep RL for Robotics: A Survey of Real-World Successes* — arXiv:2408.03539. https://arxiv.org/abs/2408.03539
+- *RL-100: Performant robotic manipulation with real-world RL* — Science Robotics, 2026. https://www.science.org/doi/10.1126/scirobotics.aed6267
+- *Cost-effective and safe contact-rich robotic manipulation with RL: a review* — 2026. https://journals.sagepub.com/doi/10.1177/09596518251350353
 - *Real-to-Sim-to-Real*, World Labs — https://www.worldlabs.ai/blog/real-to-sim-to-real
 - *The Robotic Data Pipeline*, Trossen Robotics — https://www.trossenrobotics.com/post/robotic-data-pipeline-sensor-streams-to-training-datasets
 - *Humanoids-in-the-Wild 500*, Humanoids Daily — https://www.humanoidsdaily.com/news/bitrobot-and-hugging-face-drop-hiw-500-a-massive-10tb-real-home-humanoid-dataset

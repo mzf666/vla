@@ -26,6 +26,8 @@ Only two channels connect them. One delivers a model conforming to the **Policy 
 
 The fleet closes the loop. Robots take a policy and do work, the work produces episodes, the episodes train a better policy. What appreciates is the loop, not any single delivery inside it [[arXiv:2511.19647]](https://arxiv.org/abs/2511.19647).
 
+This loop will not be unfamiliar to you. Fleet collection, cloud auto-labelling, large-scale training, simulation validation, OTA with A/B — the autonomous-driving data loop has already run this once [[arXiv:2511.19647]](https://arxiv.org/abs/2511.19647). So where our design agrees with what you already do, we move quickly. What deserves the time is the three places it does not transfer: data shifts from scale collection to compositional generalization (section 3.1), simulation shifts from looking real to *contacting* real (Part 4), and the failure signal shifts from a discrete event to a continuous process (Part 5).
+
 The organ in the middle is **evaluation**. It gates both directions: nothing unscreened reaches a robot, and its failure analysis decides what the next round collects. We draw it between the factories because it belongs to both [[blog: World Labs real-to-sim-to-real]](https://www.worldlabs.ai/blog/real-to-sim-to-real).
 
 Two numbers press on every design decision from day one: a 0.7 kWh battery and about 2 h of endurance [[blog: carnewschina 2026-04-13]](https://carnewschina.com/2026/04/13/chery-begins-online-sales-of-humanoid-robot-with-a-0-7-kwh-battery-at-41400-usd/). Every extra watt of inference is working time the robot loses. And a third: one machine emits 128 GB/h of raw sensor data, which no backhaul link can absorb [computed: 35.665 MB/s × 3600]. These constraints recur throughout.
@@ -84,7 +86,7 @@ A manifest is a source-by-stage weight table, not a file list [[arXiv:2511.19647
 | our on-policy rollouts | unused | unused | primary |
 | reconstructed scenes | unused | contributing | evaluation, failure search |
 
-Part 3's data map explains why the table looks like this; Part 5 gives the numbers across the five phases [computed: see f04 and f13].
+Part 3's data map explains why the table looks like this; Part 6 gives the numbers across the five phases [computed: see f04 and f13].
 
 ## 2.2 Architecture and the frozen API
 
@@ -102,7 +104,7 @@ Capability appears at scale and is then preserved through distillation. The same
 
 We attach a measurable target to "edge", or it stays an adjective: **intelligence density**, task success per parameter per watt [computed: a combination of three disclosed quantities]. It ties the work in sections 2.6 and 2.7 to that 700 Wh battery as one chain of constraint [computed: 0.7 kWh × 1000].
 
-One admission: **no published work gives a teacher/student size pairing for a robot foundation model** [computed: no disclosed pairing found]. We have to establish that number ourselves in P1, and it is listed in Part 6.
+One admission: **no published work gives a teacher/student size pairing for a robot foundation model** [computed: no disclosed pairing found]. We have to establish that number ourselves in P1, and it is listed in Part 7.
 
 Two other starting points we rejected, with the conditions that would reverse each [[arXiv:2607.15275]](https://arxiv.org/abs/2607.15275).
 
@@ -118,13 +120,9 @@ Short section, because it inherits almost everything from sections 2.1 and 2.2. 
 
 ## 2.5 The experience loop
 
-In: fleet episodes with takeover flags and outcomes. Out: a better policy [[arXiv:2511.19647]](https://arxiv.org/abs/2511.19647). Learn a value function from heterogeneous experience, then train the policy conditioned on advantage.
+In: fleet episodes. Out: a better policy [[arXiv:2511.19647]](https://arxiv.org/abs/2511.19647). Its position in the pipeline is here, but its mechanism gets a part of its own — because "fleet data becomes a better policy" is the single easiest claim on this path to state vaguely.
 
-The increment is where the signal comes from: **the moment an operator takes over is the cheapest reward signal available**. No annotation, no reward engineering, and it arrives already on the real distribution [[arXiv:2511.19647]](https://arxiv.org/abs/2511.19647). Writing takeover flags into the Episode Contract back in Part 1 is what lets this switch on at P2 without touching hardware.
-
-Its limits, equally plainly. The experience loop improves quality inside the envelope the policy already attempts; it does not expand that envelope [[arXiv:2511.19647]](https://arxiv.org/abs/2511.19647). New behaviours, venues and objects still have to come from human-sourced corpora. Getting this backwards is the most common over-promise in roadmaps like this one, and we are not going to make it.
-
-One unknown: **there is no published curve from takeover rate to measurable improvement** [computed: no disclosed conversion curve found]. It determines how large a fleet P2 needs, and it is in Part 6.
+The full treatment is Part 5: where reward comes from, why the algorithm is advantage-conditioned supervised training rather than policy gradient, where exploration happens, and how credit is assigned in contact-rich tasks
 
 ## 2.6 The compression chain
 
@@ -140,7 +138,7 @@ Acceptance is a task-success delta, never a proxy. The cliff is public: 4 bpw is
 
 One piece of real-silicon evidence contradicting the benchmarks deserves its own line: a custom SoC ships W8A16 and states explicitly that W8A8 degrades success rate [[arXiv:2606.07383]](https://arxiv.org/abs/2606.07383). Simulation benchmarks and custom silicon disagree here, and we trust the silicon.
 
-Also worth flagging now: this section and section 2.7 rest on a thinner, more vendor-adjacent evidence base than the ones before them [[repo: FlashRT]](https://github.com/flashrt-project/FlashRT). That is not a defect, and Part 5 explains why it is precisely the stretch where original work pays.
+Also worth flagging now: this section and section 2.7 rest on a thinner, more vendor-adjacent evidence base than the ones before them [[repo: FlashRT]](https://github.com/flashrt-project/FlashRT). That is not a defect, and Part 6 explains why it is precisely the stretch where original work pays.
 
 ## 2.7 The serving system
 
@@ -202,6 +200,10 @@ Reality — real, reconstructed, simulated, generated — is not a third axis bu
 
 What the data system does reduces to one sentence: **move probability mass into the region the current training stage needs, at the lowest cost per unit of useful signal** [[arXiv:2511.19647]](https://arxiv.org/abs/2511.19647).
 
+One intuition carried over from autonomous driving needs correcting here. On a car, the data problem is the long tail: rare scenes occur rarely, so you throw fleet size at them. On a robot the problem changes character: **it is not the long tail, it is compositional generalization**. The task space is spanned by combinations across four axes — action, object, environment, goal [computed: four combining axes]. A policy that handles twenty cups collapses on a transparent one beaded with condensation, because that single swap changes vision, friction and deformation at once. Real-robot benchmarks are now built on exactly this structure: factor tabletop manipulation into atomic skills, train on 30 atomic tasks, then test generalization on 24 held-out compositional ones [[arXiv:2606.16826]](https://arxiv.org/abs/2606.16826).
+
+That distinction changes collection strategy directly. A long tail is addressed by running more; compositional generalization is addressed by running *more variously*. For the same robot-hours, covering more object × environment × goal combinations is worth far more than a hundred more repetitions of one combination [[arXiv:2510.13149]](https://arxiv.org/abs/2510.13149).
+
 One boundary is fixed: **action-grounded real data on our own embodiment is a necessity, and no operation on this map manufactures it** [[arXiv:2604.15483 §3]](https://arxiv.org/abs/2604.15483). Every vector eventually needs it as an anchor, and Part 4's rank-fidelity validation is impossible without it. That is also why the fleet you already have running is the least substitutable piece of this whole undertaking.
 
 ![Which data feeds which stage](figures/f05-info-flow.png)
@@ -217,6 +219,8 @@ In: a running robot. Out: contract-conforming episodes at the ingest boundary [[
 One humanoid produces 35.665 MB/s of unfiltered sensor data, reduced to 0.213 MB/s under online compression, a 99.4% reduction [[blog: Trossen robotic data pipeline]](https://www.trossenrobotics.com/post/robotic-data-pipeline-sensor-streams-to-training-datasets). That is 128 GB/h [computed: 35.665 MB/s × 3600], about 3 TB/day per machine [computed: 128 GB/h × 24 h]. Across a 300-robot fleet on an 8 h shift, 307 TB/day [computed: 128 GB/h × 8 h × 300]. No backhaul link absorbs that.
 
 So triage happens on the robot, in four layers: everything lands in a short ring buffer; only trigger-marked segments persist; those are encoded on-device; upload happens opportunistically while charging [[blog: Trossen robotic data pipeline]](https://www.trossenrobotics.com/post/robotic-data-pipeline-sensor-streams-to-training-datasets). Four kinds of trigger — takeover, failure, novelty above threshold, and a random quota.
+
+A fifth deserves its own mention, because it transfers directly from the data loop you already run: **shadow mode**. The policy infers in the background as usual but does not drive the motors; comparing its output against what was actually executed — by the teleoperator, or by the previous policy version — makes the disagreement itself a collection trigger [[arXiv:2511.19647]](https://arxiv.org/abs/2511.19647). Its virtue is that the signal is continuous, automatic, and costs the operator no additional action. In Part 5 it returns as a reward signal.
 
 That random quota is not optional. **Without it the retained set consists entirely of failures, and the model learns a world that always goes wrong** [[arXiv:2511.19647]](https://arxiv.org/abs/2511.19647). It is the one counterintuitive element of the design, and the first thing cut during implementation.
 
@@ -284,7 +288,75 @@ If P1 measures below that floor, the plan does not stop — it switches to a mor
 
 ---
 
-# Part 5 — The roadmap
+# Part 5 — Reinforcement learning: how the experience loop actually turns
+
+![How the experience loop actually turns](figures/f14-experience-loop.png)
+
+We have said several times that fleet data makes the policy better. This part takes that sentence apart, because it is the easiest claim on this path to leave vague
+
+## 5.1 Why the RL textbook cannot simply be moved onto a fleet
+
+Three hard constraints hold on real robots, and each one breaks a standard assumption [[arXiv:2408.03539]](https://arxiv.org/abs/2408.03539).
+
+**No reset.** Textbook RL assumes the environment can be returned to an initial state and the episode replayed. A customer venue has no such operation — a spilled cup is spilled, an opened drawer is open. Resetting takes a person, and people's time is exactly what we are trying to save [[arXiv:2408.03539]](https://arxiv.org/abs/2408.03539).
+
+**No free exploration.** Exploring means deliberately executing actions you are unsure of. In a real venue that means deliberately creating safety risk and hardware wear, in front of a customer [ref. contact-rich RL review, 2026].
+
+**No reward from the environment.** No real venue returns a scalar score. Sparse outcome rewards are weak and delayed; hand-written dense rewards are labour-intensive and do not survive a change of task [[arXiv:2606.22027]](https://arxiv.org/abs/2606.22027).
+
+Together these mean **on-policy policy-gradient methods (the PPO family) are not viable on a fleet** [computed: from the three constraints above]. The goal is not to move RL onto the robots; it is to restate the problem RL solves in terms the fleet can actually supply.
+
+## 5.2 Where reward comes from: four signals, ranked by cost and by ambiguity
+
+Since the environment gives no reward, reward has to be constructed. We use four signals, differing in cost and in ambiguity [computed: outcome, shadow-mode disagreement, takeover, force attribution].
+
+**Task outcome.** Success or failure. Unambiguous, but sparse. In a task of a dozen steps, one terminal failure label says almost nothing about which step went wrong [[arXiv:2604.03037]](https://arxiv.org/abs/2604.03037).
+
+**Shadow-mode disagreement.** The policy infers in the background without driving the motors, and its output is differenced against what was actually executed [[arXiv:2511.19647]](https://arxiv.org/abs/2511.19647). Continuous, automatic, and it costs the operator no additional action — the cheapest of the four. Its cost is that it measures *inconsistency with current behaviour*, not *wrongness*; where the reference behaviour is itself suboptimal, disagreement points the wrong way.
+
+**Operator takeover.** Here an intuition imported straight from autonomous driving will mislead you. In a car, a takeover is a discrete, unambiguous, timestamped event that can serve directly as a frame-level label. **On a robot it is not.** A failed grasp is a continuous process: insufficient friction, wrong pose planning, mis-tuned force control and visual misdetection all surface as the same outcome, and the takeover happens after a human notices, which need not be near the frame where things actually went wrong [computed: failure attribution on a robot is continuous, unlike a discrete AD takeover]. So a takeover here is a **segment-level** marker — "something in this stretch went wrong" — and cannot be used as a frame-level reward.
+
+**Force attribution.** This is what closes the gap the previous signal leaves. Using the commanded torque and tactile channels from the Episode Contract, the failure is localised to a frame inside the flagged segment [[arXiv:2604.15483 §3]](https://arxiv.org/abs/2604.15483). Discontinuities in contact force, and disagreement between force and displacement, mark the failing moment earlier and more definitely than vision does. This is the second reason we insisted on commanded torque back in Part 1 — the first was training contact behaviour, the second is this.
+
+The four compose: shadow mode and outcome give cheap, full-coverage coarse signal; takeover localises to a segment; force attribution contracts the segment to a frame [computed: how the four signals compose by cost and ambiguity].
+
+## 5.3 The algorithm: why advantage-conditioned supervised training
+
+Fleet data is a heterogeneous off-policy mixture — part teleoperation, part autonomous rollout, part human correction after a takeover, part simulation. **The behaviour policy's density over that mixture is unknown** [computed: the fleet mixes teleoperation, autonomy and intervention].
+
+That single fact rules out a whole class of methods. Importance sampling needs to know the probability with which the data was generated in order to correct off-policy data without bias. That density is unavailable here, so policy gradients carrying an importance ratio cannot be used [[arXiv:2408.03539]](https://arxiv.org/abs/2408.03539).
+
+What remains is to rewrite the problem as supervised learning, in three steps
+
+First, learn a value function V(s) from the offline data. Second, subtract V(s) from the realised return to obtain the advantage — a measure of how much better this step was than average *for that state*, rather than how good it was in absolute terms. That relative quantity is far easier to estimate and far more stable [[arXiv:2604.03037]](https://arxiv.org/abs/2604.03037). Third, train the policy with advantage as a **conditioning input**, which makes the objective conditional density estimation; at deployment the condition is pinned to high advantage, so the model generates from the good end of the distribution.
+
+Nowhere in that procedure is there a policy gradient or an importance ratio. It is one supervised training run whose objective has been reweighted by advantage [[arXiv:2604.03037]](https://arxiv.org/abs/2604.03037).
+
+Diffusion and flow-matching policies add one wrinkle: generating an action takes several denoising steps, the advantage is assigned to the whole action, and how to distribute it across steps is not obvious. The engineered answer is to model the denoising process itself as a two-level MDP, sharing the environment-level advantage across the denoising steps [ref. RL-100, Science Robotics 2026].
+
+## 5.4 Explore in simulation, verify on hardware
+
+Two of the three constraints in section 5.1 — no reset and no free exploration — disappear inside a reconstructed scene [[blog: World Labs real-to-sim-to-real]](https://www.worldlabs.ai/blog/real-to-sim-to-real). So the division of labour is clean:
+
+**Simulation explores.** Resettable, counterfactual, massively parallel; suited to policy iteration and to actively searching for the conditions under which a policy breaks, rather than waiting for it to break in front of a customer [[blog: World Labs real-to-sim-to-real]](https://www.worldlabs.ai/blog/real-to-sim-to-real).
+
+**Hardware collects and verifies.** It supplies the real on-policy distribution and the final gate decision [[arXiv:2511.19647]](https://arxiv.org/abs/2511.19647). No exploration happens on hardware.
+
+What connects the two is Part 4's rank fidelity [[blog: World Labs real-to-sim-to-real]](https://www.worldlabs.ai/blog/real-to-sim-to-real). Where it holds, this division holds; where it fails, gains found in exploration cannot be transferred safely onto hardware — which is why the evaluation organ has to be built first.
+
+## 5.5 Where this loop stops
+
+Finally, its boundary, because this is where over-promising happens
+
+**Distribution collapse.** The experience loop improves quality only within the range the policy already attempts. Rollouts cover what the policy already does, and advantage can only rank among those [[arXiv:2511.19647]](https://arxiv.org/abs/2511.19647). It makes what is inside the envelope better; it does not enlarge the envelope.
+
+**So novelty has to be injected continuously.** New behaviours, venues and objects still come from the two human-sourced curves on Part 3's data map [[arXiv:2511.19647]](https://arxiv.org/abs/2511.19647). That is not a cold-start arrangement, it is permanent structure — and it is why public and human-sourced corpora still hold more than half the mixture at P4.
+
+**The real target is not a high score on one task.** It is atomic skills that compose. A policy that scores well on 30 atomic tasks and falls over on the held-out compositional ones has no value in a real venue [[arXiv:2606.16826]](https://arxiv.org/abs/2606.16826). The experience loop optimises the latter.
+
+---
+
+# Part 6 — The roadmap
 
 ![The roadmap: ordered, not scheduled](figures/f12-roadmap-public.png)
 
@@ -309,7 +381,7 @@ And keep the boundary from section 2.5 in view: on-policy data improves quality 
 
 ---
 
-# Part 6 — What we do not know yet
+# Part 7 — What we do not know yet
 
 Naming the unknowns and attaching an experiment to each is worth more than confidence everywhere. All eight come straight from our fact ledger [computed: the GAP group of this module's FACTS.md].
 
@@ -349,6 +421,13 @@ So the trigger is concrete: **reassess the allocation when a world action model 
 - *Characterizing VLA Models across XPUs* — arXiv:2604.24447. https://arxiv.org/abs/2604.24447
 - *Energy characterization of VLA inference* — arXiv:2607.09520. https://arxiv.org/abs/2607.09520
 - *Robot-Powered Data Flywheels* — arXiv:2511.19647. https://arxiv.org/abs/2511.19647
+- *ATOM-Bench: Atomic Skills and Compositional Generalization* — arXiv:2606.16826. https://arxiv.org/abs/2606.16826
+- *RoboHiMan: Hierarchical Evaluation for Compositional Generalization* — arXiv:2510.13149. https://arxiv.org/abs/2510.13149
+- *ARM: Advantage Reward Modeling for Long-Horizon Manipulation* — arXiv:2604.03037. https://arxiv.org/abs/2604.03037
+- *RARM: Confidence-Gated Progress Reward Modeling* — arXiv:2606.22027. https://arxiv.org/abs/2606.22027
+- *Deep RL for Robotics: A Survey of Real-World Successes* — arXiv:2408.03539. https://arxiv.org/abs/2408.03539
+- *RL-100: Performant robotic manipulation with real-world RL* — Science Robotics, 2026. https://www.science.org/doi/10.1126/scirobotics.aed6267
+- *Cost-effective and safe contact-rich robotic manipulation with RL: a review* — 2026. https://journals.sagepub.com/doi/10.1177/09596518251350353
 - *Real-to-Sim-to-Real*, World Labs — https://www.worldlabs.ai/blog/real-to-sim-to-real
 - *The Robotic Data Pipeline*, Trossen Robotics — https://www.trossenrobotics.com/post/robotic-data-pipeline-sensor-streams-to-training-datasets
 - *Humanoids-in-the-Wild 500*, Humanoids Daily — https://www.humanoidsdaily.com/news/bitrobot-and-hugging-face-drop-hiw-500-a-massive-10tb-real-home-humanoid-dataset
