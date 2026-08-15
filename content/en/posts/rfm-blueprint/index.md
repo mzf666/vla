@@ -1,7 +1,7 @@
 ---
 title: "An RFM Implementation Blueprint: the Model Factory and the Data Flywheel"
 date: 2026-08-15
-draft: false
+draft: true
 ---
 
 ## What we would build together

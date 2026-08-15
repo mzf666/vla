@@ -1,7 +1,7 @@
 ---
 title: "How to Build a Robot Foundation Model — Routes and Roadblocks (TLDR)"
 date: 2026-07-31
-draft: false
+draft: true
 tags: ["physical-ai", "embodied-ai", "VLA", "robotics", "foundation-models", "edge"]
 summary: "The deck edition: the same argument as one slide per screen, readable in fifteen minutes instead of fifty."
 ---

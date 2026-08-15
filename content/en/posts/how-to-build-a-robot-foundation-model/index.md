@@ -1,7 +1,7 @@
 ---
 title: "How to Build a Robot Foundation Model — Routes and Roadblocks"
 date: 2026-07-31
-draft: false
+draft: true
 tags: ["physical-ai", "embodied-ai", "VLA", "robotics", "foundation-models", "edge"]
 summary: "A first-principles chain: what a robot foundation model is, what it is made of, why the machine that produced large language models does not transfer, what that failure costs in each subsystem, and the order in which to build it anyway."
 ---

@@ -1,7 +1,7 @@
 ---
 title: "How to Build Generalist Physical AI: π0.7 from Beginner to Pro"
 date: 2026-07-27
-draft: false
+draft: true
 tags: ["physical-ai", "embodied-ai", "VLA", "robotics", "foundation-models"]
 summary: "A reproduction-grade walkthrough of π0.7 — every disclosed hyperparameter, every subsystem's I/O contract, and an honest ledger of what the paper does not tell you."
 ---

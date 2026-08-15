@@ -1,7 +1,7 @@
 ---
 title: "RFM 实施蓝图：模型工厂与数据飞轮"
 date: 2026-08-15
-draft: false
+draft: true
 ---
 
 ## 我们要一起建的东西

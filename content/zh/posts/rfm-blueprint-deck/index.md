@@ -1,7 +1,7 @@
 ---
 title: "RFM 实施蓝图 —— Pitch Deck"
 date: 2026-08-15
-draft: false
+draft: true
 ---
 
 九张主线，四张备用。每张一图三行：逻辑从图上就能读出来，文字只负责点名增量 [computed: 本 deck 的设计约束]。
