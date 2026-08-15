@@ -350,7 +350,7 @@ Finally, its boundary, because this is where over-promising happens
 
 **Distribution collapse.** The experience loop improves quality only within the range the policy already attempts. Rollouts cover what the policy already does, and advantage can only rank among those [[arXiv:2511.19647]](https://arxiv.org/abs/2511.19647). It makes what is inside the envelope better; it does not enlarge the envelope.
 
-**So novelty has to be injected continuously.** New behaviours, venues and objects still come from the two human-sourced curves on Part 3's data map [[arXiv:2511.19647]](https://arxiv.org/abs/2511.19647). That is not a cold-start arrangement, it is permanent structure — and it is why public and human-sourced corpora still hold more than half the mixture at P4.
+**So novelty has to be injected continuously.** New behaviours, venues and objects still come from the two human-sourced rows on Part 3's data map [[arXiv:2511.19647]](https://arxiv.org/abs/2511.19647). That is not a cold-start arrangement, it is permanent structure — and it is why public and human-sourced corpora are still "contributing" rather than "unused" at P4.
 
 **The real target is not a high score on one task.** It is atomic skills that compose. A policy that scores well on 30 atomic tasks and falls over on the held-out compositional ones has no value in a real venue [[arXiv:2606.16826]](https://arxiv.org/abs/2606.16826). The experience loop optimises the latter.
 
@@ -381,7 +381,7 @@ The third row matters most. Its first two cells read "unused", and that is not a
 
 How large a share it reaches by P4, we do not know — that depends on the conversion curve nobody has published, listed in Part 7, and on fleet size. It is a direct output of P2, not something this document can pretend to compute [computed: no disclosed conversion curve found].
 
-And keep the boundary from section 5.5 in view: on-policy data improves quality inside the existing envelope and cannot expand it [[arXiv:2511.19647]](https://arxiv.org/abs/2511.19647). So the first two curves still make up more than half the mixture at P4. Their role shifts from bulk supply to novelty injection, but they never reach zero.
+And keep the boundary from section 5.5 in view: on-policy data improves quality inside the existing envelope and cannot expand it [[arXiv:2511.19647]](https://arxiv.org/abs/2511.19647). So the first two rows still read "contributing" rather than "unused" at P4 — their role shifts from bulk supply to novelty injection, but it never reaches zero.
 
 ---
 
