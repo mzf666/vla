@@ -10,7 +10,17 @@ draft: false
 
 剩下的一半是 robot foundation model 和喂养它的数据系统。下面讲的就是这一半——具体建什么，按什么顺序建，每一步靠什么证据判断它成了 [[arXiv:2511.19647]](https://arxiv.org/abs/2511.19647)。
 
-两条原则贯穿始终。能抄的地方一律抄已经被复现过的配方，只在绕不过去的那一段做原创。凡是给出的数字都能追到一行出处；追不到的，我们直接说"这个还不知道" [computed: 本文的取数规则]。
+**定位从第一天就定下来：我们做的是端侧的 robotic foundation model。** 这句话里两个词都要当真
+
+![端侧 foundation model 的两段式设计](figures/f15-edge-thesis.png)
+
+foundation model 意味着能力必须从大模型范式里长出来——把参数、数据、FLOPs 与算法强度一起 scale up，用计算换智能。这一点没有捷径：同样的小架构直接训练，到不了大模型经蒸馏之后的位置 [[arXiv:2606.05737]](https://arxiv.org/abs/2606.05737)。
+
+端侧意味着最终交付物必须活在一块 0.7 kWh 电池和一颗 SoC 的预算里 [[blog: carnewschina 2026-04-13]](https://carnewschina.com/2026/04/13/chery-begins-online-sales-of-humanoid-robot-with-a-0-7-kwh-battery-at-41400-usd/)。
+
+这两件事表面上互相矛盾，解法是把它们拆成先后两段：**先用大模型范式把智能做出来，再把它压回端侧。** 压回去这一段不是单一技术，而是一整条链路——以 on-policy distillation 为主的 compression / distillation 技术栈、训练与推理 infra 优化、推理侧的软件优化，以及软硬件协同设计 [[arXiv:2604.00626]](https://arxiv.org/abs/2604.00626)。整份材料的结构就是这条逻辑：第 2 部分讲怎么把它做大，2.6 节与 2.7 节讲怎么压回去，第 6 部分讲这两段在时间上怎么排。
+
+还有一条贯穿始终的规矩：凡是给出的数字都能追到一行出处，或者追到一次基于出处的算术；追不到的，我们直接说这个还不知道，不编 [computed: 本文的取数规则]。
 
 ---
 
@@ -100,7 +110,7 @@ manifest 的形状是"来源 × 阶段"的权重表，不是文件列表 [[arXiv
 
 这一节的逻辑对一个主打端侧的产品是反直觉的，所以请让我说清楚：**我们不训练最终要出货的那个小模型** [[arXiv:2606.05737]](https://arxiv.org/abs/2606.05737)。
 
-能力先在规模上出现，再通过蒸馏保留下来。同样的小架构从零训练，到不了同一个位置 [[arXiv:2606.05737]](https://arxiv.org/abs/2606.05737)。端侧真正出货的模型落在 450M 到 690M 这个区间 [computed: SmolVLA 下界，RoboTTT 上界]，但它们的能力来自更大的教师，而不是在这个尺寸上直接堆数据。
+能力先在规模上出现，再通过蒸馏保留下来。同样的小架构从零训练，到不了同一个位置 [[arXiv:2606.05737]](https://arxiv.org/abs/2606.05737)。这就是用计算换智能的具体含义：在预训练阶段把参数、数据、FLOPs 与算法强度一起推上去，换来的是一个小模型自己练不出来的能力上限。端侧真正出货的模型落在 450M 到 690M 这个区间 [computed: SmolVLA 下界，RoboTTT 上界]，但它们的能力来自更大的教师，而不是在这个尺寸上直接堆数据。
 
 我们给"端侧"配一个可度量的目标，否则它永远只是个形容词：**intelligence density**，每参数每瓦的任务成功率 [computed: 三项已披露量的组合]。它把 2.6 节和 2.7 节的工作，和那块 700 Wh 电池串成同一条约束链 [computed: 0.7 kWh × 1000]。
 
@@ -129,6 +139,8 @@ manifest 的形状是"来源 × 阶段"的权重表，不是文件列表 [[arXiv
 ![压缩链路：左边是顺序，右边是验收](figures/f07-compression.png)
 
 输入大教师，输出出货的学生。这节的内容就是顺序，而顺序由实测排定，不由惯例排定 [[arXiv:2602.18397]](https://arxiv.org/abs/2602.18397)。
+
+蒸馏这一步值得点名技术栈。当前主流做法是 **on-policy distillation（OPD）**：让学生先自己走出轨迹，教师在**学生自己到达的状态**上给反馈，而不是在理想化的专家前缀上给反馈 [[arXiv:2604.00626]](https://arxiv.org/abs/2604.00626)。它已经进入多个公开的大模型 post-training 流程 [[arXiv:2604.00626]](https://arxiv.org/abs/2604.00626)，而且它和第 5 部分那个 experience loop 用的是同一个结构性判断——on-policy 的分布比 off-policy 的分布值钱。换句话说，我们在压缩链路和经验循环上押的是同一个原理 [[arXiv:2604.13016]](https://arxiv.org/abs/2604.13016)。
 
 按实测端到端收益排：编译给出 1.5 到 3.34×，精度代价恰好为 0 [[arXiv:2602.18397]](https://arxiv.org/abs/2602.18397)；少步蒸馏把 10 步降到 1 步给出 3.3×，精度不降反升 [[arXiv:2606.05737]](https://arxiv.org/abs/2606.05737)；运行时加异步栈在 Jetson Orin 上给出 8.66× [[arXiv:2607.12659]](https://arxiv.org/abs/2607.12659)；视觉 token 剪枝给出 1.83×，天花板 2.0× [[arXiv:2607.09520]](https://arxiv.org/abs/2607.09520)；单纯 PTQ 量化给出 1.47 到 1.52× [[arXiv:2605.24011]](https://arxiv.org/abs/2605.24011)。
 
@@ -375,7 +387,11 @@ telemetry 回流那条边决定下一轮采什么。这条边断了，飞轮就�
 
 **端侧排在飞轮闭合之后。** 对一个还在每周变化的模型做压缩，意味着整条压缩链路反复重做，精度差值反复重测 [[arXiv:2605.24011]](https://arxiv.org/abs/2605.24011)。所以 P1 与 P2 期间我们明确用离机或本地机房算力，这个过渡形态写在明处，不藏。反方向的论据是商业上的——机上自主是最有说服力的演示——所以这里给的是权衡，不是结论：如果演示价值压过工程返工成本，P3 可以提前，代价是压缩链路多做一到两轮。
 
-还有一件事想先说在前面：**P0 到 P2 抄的是已经公开且被复现过的配方**，在这些地方做原创买不到任何东西，只会付出排期 [[arXiv:2604.15483 §3]](https://arxiv.org/abs/2604.15483)。**P3 是我们停止抄作业的地方**——它的证据基础更薄、更贴近厂商自述，也正因如此，它是这条路上原创工作真正不可避免的一段 [[repo: FlashRT]](https://github.com/flashrt-project/FlashRT)。换句话说，风险集中在一个被点名的阶段，它上游的每一段都已经由别人的钱验证过了。
+还有一件事想先说在前面，它决定了资源该压在哪里
+
+**P0 到 P2 采用的是当前主流的大模型 post-training 与 RL 技术栈**——开源 VLM 起步、独立的动作专家、knowledge insulation、on-policy 的经验循环。这条技术路线已经被多个团队公开复现，在这里另起炉灶买不到能力，只会付出排期 [[arXiv:2604.15483 §3]](https://arxiv.org/abs/2604.15483)。
+
+**P3 才是这条路线的重心：把大模型压回端侧，是我们必须自己做成的一段。** 它的证据基础更薄、更贴近厂商自述，公开的完整方案并不存在 [[repo: FlashRT]](https://github.com/flashrt-project/FlashRT)。而端侧能不能成立，直接决定这个产品能不能成立——我们从一开始就是按端侧 foundation model 定位的，这一段做不成，前面几段的能力也交付不出去。所以工程投入与风险都集中在这里，它上游的每一段则站在已经被验证过的技术栈上。
 
 ![配比如何随阶段迁移](figures/f13-mixture-shift.png)
 
@@ -431,6 +447,8 @@ telemetry 回流那条边决定下一轮采什么。这条边断了，飞轮就�
 - *Characterizing VLA Models across XPUs* — arXiv:2604.24447. https://arxiv.org/abs/2604.24447
 - *Energy characterization of VLA inference* — arXiv:2607.09520. https://arxiv.org/abs/2607.09520
 - *Robot-Powered Data Flywheels* — arXiv:2511.19647. https://arxiv.org/abs/2511.19647
+- *A Survey of On-Policy Distillation for Large Language Models* — arXiv:2604.00626. https://arxiv.org/abs/2604.00626
+- *Rethinking On-Policy Distillation of Large Language Models* — arXiv:2604.13016. https://arxiv.org/abs/2604.13016
 - *ATOM-Bench: Atomic Skills and Compositional Generalization* — arXiv:2606.16826. https://arxiv.org/abs/2606.16826
 - *RoboHiMan: Hierarchical Evaluation for Compositional Generalization* — arXiv:2510.13149. https://arxiv.org/abs/2510.13149
 - *ARM: Advantage Reward Modeling for Long-Horizon Manipulation* — arXiv:2604.03037. https://arxiv.org/abs/2604.03037

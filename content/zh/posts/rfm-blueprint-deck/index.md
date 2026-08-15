@@ -4,21 +4,31 @@ date: 2026-08-15
 draft: false
 ---
 
-六张主线，四张备用。每张一图三行：逻辑从图上就能读出来，文字只负责点名增量 [computed: 本 deck 的设计约束]。
+七张主线，四张备用。每张一图三行：逻辑从图上就能读出来，文字只负责点名增量 [computed: 本 deck 的设计约束]。
 
 ---
 
-## 1 —— 我们要一起建的东西
+## 1 —— 定位：端侧 robotic foundation model
+
+![](figures/f15-edge-thesis.png)
+
+- 最难的一半你们做完了：本体量产、进了真实场景、带着 VR 遥操作在跑；剩下的是模型与数据系统 [[blog: carnewschina 2026-04-13]](https://carnewschina.com/2026/04/13/chery-begins-online-sales-of-humanoid-robot-with-a-0-7-kwh-battery-at-41400-usd/)
+- **目标是端侧的 foundation model**。要有 foundation model 的能力，就得走大模型范式——参数、数据、FLOPs、算法强度一起 scale up，用计算换智能 [[arXiv:2606.05737]](https://arxiv.org/abs/2606.05737)
+- **做大之后再压回端侧**：以 OPD 为主的蒸馏技术栈 + infra 优化 + 推理软件优化 + 软硬件协同设计，最终活在 0.7 kWh 的预算里 [[arXiv:2604.00626]](https://arxiv.org/abs/2604.00626)
+
+---
+
+## 2 —— 系统长什么样
 
 ![](figures/f01-system.png)
 
-- 最难的一半你们做完了：本体量产、进了真实场景、带着 VR 遥操作在跑 [[blog: carnewschina 2026-04-13]](https://carnewschina.com/2026/04/13/chery-begins-online-sales-of-humanoid-robot-with-a-0-7-kwh-battery-at-41400-usd/)
-- 剩下的一半是两个工厂：Model Factory 把数据变成能上车的策略，Data Flywheel 把机器人的运行变成可训练的数据 [[arXiv:2511.19647]](https://arxiv.org/abs/2511.19647)
+- 两个工厂：Model Factory 把数据变成能上车的策略，Data Flywheel 把机器人的运行变成可训练的数据 [[arXiv:2511.19647]](https://arxiv.org/abs/2511.19647)
 - 它们之间只有两条通路——Policy API Contract 与 Episode Contract；中间那个器官 evaluation 两头卡 [[arXiv:2604.15483 §3]](https://arxiv.org/abs/2604.15483)
+- 流水线的右半段就是"压回端侧"那一段：compress 与 serve [[arXiv:2602.18397]](https://arxiv.org/abs/2602.18397)
 
 ---
 
-## 2 —— 数据地图：我们怎么想数据这件事
+## 3 —— 数据地图：我们怎么想数据这件事
 
 ![](figures/f04-data-map.png)
 
@@ -28,7 +38,7 @@ draft: false
 
 ---
 
-## 3 —— 数据飞轮
+## 4 —— 数据飞轮
 
 ![](figures/f09-flywheel.png)
 
@@ -38,7 +48,7 @@ draft: false
 
 ---
 
-## 4 —— 评估：整条路线的瓶颈
+## 5 —— 评估：整条路线的瓶颈
 
 ![](figures/f11-eval.png)
 
@@ -48,7 +58,7 @@ draft: false
 
 ---
 
-## 5 —— 强化学习：经验循环怎么真的转起来
+## 6 —— 强化学习：经验循环怎么真的转起来
 
 ![](figures/f14-experience-loop.png)
 
@@ -58,22 +68,23 @@ draft: false
 
 ---
 
-## 6 —— 路线图
+## 7 —— 路线图
 
 ![](figures/f12-roadmap-public.png)
 
 - 五个阶段按顺序排、不按日期排，每个阶段由它消掉的风险定义，由一个客观放行条件结束 [[arXiv:2511.19647]](https://arxiv.org/abs/2511.19647)
 - 评估建在模型之前，端侧排在飞轮闭合之后——两个次序我们都写明了理由和翻案条件 [[arXiv:2605.24011]](https://arxiv.org/abs/2605.24011)
-- P0 到 P2 抄已被复现的配方；P3 是我们停止抄作业的地方，风险集中在一个被点名的阶段 [[repo: FlashRT]](https://github.com/flashrt-project/FlashRT)
+- P0 到 P2 用的是主流大模型 post-training 与 RL 技术栈，已被公开复现；P3 是重心——把大模型压回端侧，是我们必须自己做成、也决定产品能否成立的一段 [[repo: FlashRT]](https://github.com/flashrt-project/FlashRT)
 
 ---
 
 # 备用（问答时调取）
 
-## B1 —— 压缩链路
+## B1 —— 压缩链路：怎么压回端侧
 
 ![](figures/f07-compression.png)
 
+- 蒸馏这一步用 on-policy distillation：教师在学生自己走到的状态上给反馈，和 experience loop 押的是同一个原理 [[arXiv:2604.00626]](https://arxiv.org/abs/2604.00626)
 - 排序由实测决定：编译零精度代价拿 1.5 到 3.34×，少步蒸馏拿 3.3× 且精度不降 [[arXiv:2602.18397]](https://arxiv.org/abs/2602.18397)
 - 量化买到的是显存不是速度——通用工具链只量化语言 backbone，而瓶颈在 action head [[arXiv:2605.24011]](https://arxiv.org/abs/2605.24011)
 - 2.5 bpw 是拐点，2 bpw 崩到 48.0%；我们的规则是停在 4 bpw [[arXiv:2605.24011]](https://arxiv.org/abs/2605.24011)

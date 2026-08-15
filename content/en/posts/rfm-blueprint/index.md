@@ -10,7 +10,17 @@ You have already done the harder half: the robot is in production, deployed in r
 
 The other half is a robot foundation model and the data system that feeds it. What follows is that half — what gets built, in what order, and what evidence closes each step [[arXiv:2511.19647]](https://arxiv.org/abs/2511.19647).
 
-Two principles run through all of it. Where a proven, reproduced recipe exists we copy it, and we reserve original work for the one stretch that cannot be avoided. Every number here traces to a source; where it does not, we say plainly that we do not know yet [computed: this document's sourcing rule].
+**The positioning is fixed from day one: what we are building is an on-device robotic foundation model.** Both halves of that phrase are meant literally
+
+![An on-device foundation model, in two stages](figures/f15-edge-thesis.png)
+
+*Foundation model* means the capability has to come out of the large-model paradigm — scaling parameters, data, FLOPs and algorithmic intensity together, trading compute for intelligence. There is no shortcut: the same small architecture trained directly never reaches where a large model lands after distillation [[arXiv:2606.05737]](https://arxiv.org/abs/2606.05737).
+
+*On-device* means the shipped artifact has to live inside the budget of a 0.7 kWh battery and one SoC [[blog: carnewschina 2026-04-13]](https://carnewschina.com/2026/04/13/chery-begins-online-sales-of-humanoid-robot-with-a-0-7-kwh-battery-at-41400-usd/).
+
+Those two look contradictory, and the resolution is to separate them in time: **build the intelligence with the large-model paradigm first, then compress it back down to the edge.** That second stage is not one technique but a chain — a compression and distillation stack built around on-policy distillation, training and inference infrastructure work, inference-side software optimisation, and hardware-software co-design [[arXiv:2604.00626]](https://arxiv.org/abs/2604.00626). The structure of this document follows that logic: Part 2 covers building it large, sections 2.6 and 2.7 cover compressing it back, and Part 6 covers how those two stages are ordered in time.
+
+One rule runs through all of it: every number traces to a source, or to arithmetic on a source. Where it does not, we say we do not know yet rather than invent one [computed: this document's sourcing rule].
 
 ---
 
@@ -100,7 +110,7 @@ One cheap addition here: **implicit world modeling as an auxiliary objective**. 
 
 This one is counterintuitive for a product whose selling point is the edge, so let us be explicit: **we do not train the small model we intend to ship** [[arXiv:2606.05737]](https://arxiv.org/abs/2606.05737).
 
-Capability appears at scale and is then preserved through distillation. The same small architecture trained from scratch does not reach the same place [[arXiv:2606.05737]](https://arxiv.org/abs/2606.05737). Models that actually ship on edge products land between 450M and 690M [computed: SmolVLA lower bound, RoboTTT upper bound], but their capability comes from a larger teacher, not from piling data onto that size.
+Capability appears at scale and is then preserved through distillation. The same small architecture trained from scratch does not reach the same place [[arXiv:2606.05737]](https://arxiv.org/abs/2606.05737). That is what trading compute for intelligence concretely means: push parameters, data, FLOPs and algorithmic intensity up together during pretraining, and what you buy is a capability ceiling a small model cannot reach on its own. Models that actually ship on edge products land between 450M and 690M [computed: SmolVLA lower bound, RoboTTT upper bound], but their capability comes from a larger teacher, not from piling data onto that size.
 
 We attach a measurable target to "edge", or it stays an adjective: **intelligence density**, task success per parameter per watt [computed: a combination of three disclosed quantities]. It ties the work in sections 2.6 and 2.7 to that 700 Wh battery as one chain of constraint [computed: 0.7 kWh × 1000].
 
@@ -129,6 +139,8 @@ The full treatment is Part 5: where reward comes from, why the algorithm is adva
 ![The compression chain: ordering on the left, acceptance on the right](figures/f07-compression.png)
 
 In: the large teacher. Out: the shipped student. This section is the ordering, and measurement sets the ordering, not convention [[arXiv:2602.18397]](https://arxiv.org/abs/2602.18397).
+
+The distillation step deserves its stack named. The mainstream approach is **on-policy distillation (OPD)**: the student first rolls out its own trajectories, and the teacher supervises **the states the student actually reached** rather than idealised expert prefixes [[arXiv:2604.00626]](https://arxiv.org/abs/2604.00626). It has entered several published large-model post-training pipelines [[arXiv:2604.00626]](https://arxiv.org/abs/2604.00626), and it rests on the same structural judgement as the experience loop in Part 5 — an on-policy distribution is worth more than an off-policy one. We are betting on the same principle in the compression chain and in the experience loop [[arXiv:2604.13016]](https://arxiv.org/abs/2604.13016).
 
 Ranked by measured end-to-end gain: compilation returns 1.5 to 3.34× at exactly 0 accuracy cost [[arXiv:2602.18397]](https://arxiv.org/abs/2602.18397); few-step distillation from 10 steps to 1 returns 3.3× and improves accuracy [[arXiv:2606.05737]](https://arxiv.org/abs/2606.05737); a runtime plus async stack returns 8.66× on Jetson Orin [[arXiv:2607.12659]](https://arxiv.org/abs/2607.12659); visual-token pruning returns 1.83× against a 2.0× ceiling [[arXiv:2607.09520]](https://arxiv.org/abs/2607.09520); PTQ quantisation alone returns 1.47 to 1.52× [[arXiv:2605.24011]](https://arxiv.org/abs/2605.24011).
 
@@ -371,7 +383,11 @@ Two ordering choices are contestable, so we put them up front ourselves
 
 **The edge comes after the flywheel closes.** Compressing a model that still changes weekly means redoing the compression chain and re-measuring the accuracy delta each time [[arXiv:2605.24011]](https://arxiv.org/abs/2605.24011). So P1 and P2 run explicitly on off-board or on-premise compute, and we state that interim arrangement openly rather than hide it. The counterargument is commercial — on-board autonomy is the most convincing demonstration — so what we offer is a trade rather than a verdict: if demonstration value outweighs the rework, P3 moves earlier, at the cost of one or two extra passes through the compression chain.
 
-One more thing worth saying up front: **P0 through P2 copy recipes already published and reproduced**, where being novel buys nothing and costs schedule [[arXiv:2604.15483 §3]](https://arxiv.org/abs/2604.15483). **P3 is where we stop copying** — thinner evidence base, closer to vendor self-report, and for exactly that reason the stretch where original work is unavoidable [[repo: FlashRT]](https://github.com/flashrt-project/FlashRT). Put differently: risk concentrates in one named phase, and everything upstream of it has already been validated with someone else's money.
+One more thing up front, because it determines where effort should concentrate
+
+**P0 through P2 use the mainstream large-model post-training and RL stack** — start from an open VLM, a separate action expert, knowledge insulation, an on-policy experience loop. That line has been publicly reproduced by several groups; starting over here buys no capability and costs schedule [[arXiv:2604.15483 §3]](https://arxiv.org/abs/2604.15483).
+
+**P3 is the centre of gravity: compressing the large model back to the edge is the stretch we have to make work ourselves.** Its evidence base is thinner and closer to vendor self-report, and no complete published solution exists [[repo: FlashRT]](https://github.com/flashrt-project/FlashRT). Whether the edge target is met decides whether the product exists at all — we positioned this as an on-device foundation model from the start, and if this stage fails, the capability built upstream cannot be delivered. So engineering effort and risk concentrate here, while everything upstream stands on an already-validated stack.
 
 ![How the mixture shifts across phases](figures/f13-mixture-shift.png)
 
@@ -427,6 +443,8 @@ So the trigger is concrete: **reassess the allocation when a world action model 
 - *Characterizing VLA Models across XPUs* — arXiv:2604.24447. https://arxiv.org/abs/2604.24447
 - *Energy characterization of VLA inference* — arXiv:2607.09520. https://arxiv.org/abs/2607.09520
 - *Robot-Powered Data Flywheels* — arXiv:2511.19647. https://arxiv.org/abs/2511.19647
+- *A Survey of On-Policy Distillation for Large Language Models* — arXiv:2604.00626. https://arxiv.org/abs/2604.00626
+- *Rethinking On-Policy Distillation of Large Language Models* — arXiv:2604.13016. https://arxiv.org/abs/2604.13016
 - *ATOM-Bench: Atomic Skills and Compositional Generalization* — arXiv:2606.16826. https://arxiv.org/abs/2606.16826
 - *RoboHiMan: Hierarchical Evaluation for Compositional Generalization* — arXiv:2510.13149. https://arxiv.org/abs/2510.13149
 - *ARM: Advantage Reward Modeling for Long-Horizon Manipulation* — arXiv:2604.03037. https://arxiv.org/abs/2604.03037
