@@ -22,6 +22,8 @@ Those two look contradictory, and the resolution is to separate them in time: **
 
 One rule runs through all of it: every number traces to a source, or to arithmetic on a source. Where it does not, we say we do not know yet rather than invent one [computed: this document's sourcing rule].
 
+There is a third category worth naming: **working values (tentative)**. Model size bands, the compression success-delta budget, untethered duty cycle — these are given as concrete numbers so the design can be argued with and disagreed with, because engineering cannot start from a blank. They move as measurements arrive, and they are not commitments. `FACTS.md` types those rows `tentative`, and they should be read as "where we start, expect it to change" [computed: this document's sourcing rule].
+
 ---
 
 # Part 0 — The whole system on one page
@@ -146,7 +148,9 @@ Ranked by measured end-to-end gain: compilation returns 1.5 to 3.34× at exactly
 
 Two conclusions go straight into the plan. **Compile the graph in week one** — zero accuracy risk, certain return [[arXiv:2602.18397]](https://arxiv.org/abs/2602.18397). **Quantisation buys memory, not speed**, because general toolchains quantise only the language backbone while the edge bottleneck is the action head [[arXiv:2605.24011]](https://arxiv.org/abs/2605.24011).
 
-Acceptance is a task-success delta, never a proxy. The cliff is public: 4 bpw is nearly free at 96.6%, 3 bpw gives 94.8%, 2.5 bpw is the knee at 85.7%, 2 bpw collapses to 48.0% [[arXiv:2605.24011]](https://arxiv.org/abs/2605.24011). That last step alone costs 37.7 pt [computed: 85.7 − 48.0], so our rule is **stop at 4 bpw**.
+Acceptance is a task-success delta, never a proxy. The cliff is public: 4 bpw is nearly free at 96.6%, 3 bpw gives 94.8%, 2.5 bpw is the knee at 85.7%, 2 bpw collapses to 48.0% [[arXiv:2605.24011]](https://arxiv.org/abs/2605.24011). That last step alone costs 37.7 pt [computed: 85.7 − 48.0], so our starting rule is **stop at 4 bpw** [[arXiv:2605.24011]](https://arxiv.org/abs/2605.24011).
+
+To be precise about what that buys: the 0.4 pt at 4 bpw is **the cost of the quantisation step alone** [[arXiv:2605.24011]](https://arxiv.org/abs/2605.24011), not the cost of the chain. Distillation, pruning and compilation each carry their own delta, and accuracy losses accumulate — we already said speedups cannot be multiplied together, and we are not going to pretend accuracy deltas do not add [[arXiv:2604.24447]](https://arxiv.org/abs/2604.24447). So 0.4 pt is treated as a **starting budget** for the whole chain, re-allocated once P3 measures what each step actually costs. What the chain's total budget should be cannot be stated now; it is listed in Part 7.
 
 One piece of real-silicon evidence contradicting the benchmarks deserves its own line: a custom SoC ships W8A16 and states explicitly that W8A8 degrades success rate [[arXiv:2606.07383]](https://arxiv.org/abs/2606.07383). Simulation benchmarks and custom silicon disagree here, and we trust the silicon.
 
@@ -411,6 +415,7 @@ Naming the unknowns and attaching an experiment to each is worth more than confi
 - **On-board power.** The only citable comparable figure is 40 W on different silicon [[arXiv:2604.24447]](https://arxiv.org/abs/2604.24447). Fixed by P3 measurement.
 - **Rank fidelity in retail and showroom venues.** Published results cover tabletop manipulation [[blog: World Labs real-to-sim-to-real]](https://www.worldlabs.ai/blog/real-to-sim-to-real). Measured by P1 on your venues.
 - **Where our own compression cliff sits.** The published cliff belongs to a different model on a different benchmark [[arXiv:2605.24011]](https://arxiv.org/abs/2605.24011). Fixed by P3's precision sweep.
+- **The compression chain's total success-delta budget.** Published data covers single-step costs; how the chain's deltas accumulate has no published result [[arXiv:2604.24447]](https://arxiv.org/abs/2604.24447). Allocated by P3 as each step is measured.
 - **The conversion rate from takeovers to measurable improvement.** No published curve exists [computed: no disclosed conversion curve found]. Measured by P2 across versions, and it sets how large a fleet P2 needs.
 - **Whether a fleet this size yields sufficient on-policy data.** No public data relates fleet size to improvement [computed: no disclosed relationship found]. A direct output of P2.
 - **Policy transfer across venue types.** Unmeasured at fleet scale [computed: no disclosed measurement found]. P4's central question.

@@ -87,7 +87,7 @@ draft: false
 - 蒸馏这一步用 on-policy distillation：教师在学生自己走到的状态上给反馈，和 experience loop 押的是同一个原理 [[arXiv:2604.00626]](https://arxiv.org/abs/2604.00626)
 - 排序由实测决定：编译零精度代价拿 1.5 到 3.34×，少步蒸馏拿 3.3× 且精度不降 [[arXiv:2602.18397]](https://arxiv.org/abs/2602.18397)
 - 量化买到的是显存不是速度——通用工具链只量化语言 backbone，而瓶颈在 action head [[arXiv:2605.24011]](https://arxiv.org/abs/2605.24011)
-- 2.5 bpw 是拐点，2 bpw 崩到 48.0%；我们的规则是停在 4 bpw [[arXiv:2605.24011]](https://arxiv.org/abs/2605.24011)
+- 2.5 bpw 是拐点，2 bpw 崩到 48.0%，起步规则是停在 4 bpw；但那 0.4 pt 只是量化单步的代价，链路总预算由 P3 实测后分配 [[arXiv:2605.24011]](https://arxiv.org/abs/2605.24011)
 
 ## B2 —— Serving
 
