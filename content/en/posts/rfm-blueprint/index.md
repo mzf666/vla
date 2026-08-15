@@ -22,7 +22,7 @@ Those two look contradictory, and the resolution is to separate them in time: **
 
 One rule runs through all of it: every number traces to a source, or to arithmetic on a source. Where it does not, we say we do not know yet rather than invent one [computed: this document's sourcing rule].
 
-There is a third category worth naming: **working values (tentative)**. Model size bands, the compression success-delta budget, untethered duty cycle — these are given as concrete numbers so the design can be argued with and disagreed with, because engineering cannot start from a blank. They move as measurements arrive, and they are not commitments. `FACTS.md` types those rows `tentative`, and they should be read as "where we start, expect it to change" [computed: this document's sourcing rule].
+There is a third category worth naming: **working values (tentative)**. Model size bands, the compression success-delta budget, untethered duty cycle — these are given as concrete numbers so the design can be argued with and disagreed with, because engineering cannot start from a blank. They move as measurements arrive, and they are not commitments. Wherever a number is of this kind the text says so, and it should be read as "where we start, expect it to change" [computed: this document's sourcing rule].
 
 ---
 
@@ -409,7 +409,7 @@ And keep the boundary from section 5.5 in view: on-policy data improves quality 
 
 # Part 7 — What we do not know yet
 
-Naming the unknowns and attaching an experiment to each is worth more than confidence everywhere. All eight come straight from our fact ledger [computed: the GAP group of this module's FACTS.md].
+Naming the unknowns and attaching an experiment to each is worth more than confidence everywhere. These nine are what we currently know that we do not know [computed: the document's unresolved items, collected].
 
 - **Teacher size.** No published work gives a teacher/student pairing for a robot foundation model [computed: no disclosed pairing found]. Fixed by P1's distillation ablation.
 - **On-board power.** The only citable comparable figure is 40 W on different silicon [[arXiv:2604.24447]](https://arxiv.org/abs/2604.24447). Fixed by P3 measurement.
